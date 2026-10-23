@@ -7,7 +7,8 @@
     Description           = 'Bilingual (Ukrainian/English) diagnostics for Windows sysadmins: finds common problems with printing, networking and PC health and explains them in plain language.'
     PowerShellVersion     = '5.1'
     CompatiblePSEditions  = @('Desktop', 'Core')
-    FunctionsToExport     = @('Get-ChekapConfig', 'Set-ChekapConfig')
+    FormatsToProcess      = @('Chekap.format.ps1xml')
+    FunctionsToExport     = @('Get-ChekapCheck', 'Get-ChekapConfig', 'Set-ChekapConfig')
     CmdletsToExport       = @()
     VariablesToExport     = @()
     AliasesToExport       = @()

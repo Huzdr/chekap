@@ -12,6 +12,8 @@
 
     'Core.ConstrainedLanguage'             = 'Chekap не може працювати в режимі обмеженої мови PowerShell (Constrained Language Mode), наприклад під AppLocker чи WDAC. Запустіть його в сесії з режимом FullLanguage.'
     'Core.InvalidCheckFile'                = 'Файл перевірки {0} некоректний: {1}'
+    'Core.InvalidCheckFile.NotHashtable'   = 'Файл має повертати рівно одну хеш-таблицю.'
+    'Core.InvalidCheckFile.BadKey'         = 'Ключ {0} відсутній або має хибний тип.'
     'Core.UnknownCheckId'                  = 'Перевірки з ідентифікатором "{0}" не існує.'
     'Core.Skipped.NotAdmin.Details'        = 'Для цієї перевірки потрібні права адміністратора.'
     'Core.Skipped.NotAdmin.Recommendation' = 'Запустіть PowerShell від імені адміністратора й повторіть перевірку.'

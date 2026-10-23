@@ -12,6 +12,8 @@
 
     'Core.ConstrainedLanguage'             = 'Chekap cannot run in Constrained Language Mode (for example under AppLocker or WDAC). Start it in a session that uses FullLanguage mode.'
     'Core.InvalidCheckFile'                = 'Check file {0} is not valid: {1}'
+    'Core.InvalidCheckFile.NotHashtable'   = 'The file must return exactly one hashtable.'
+    'Core.InvalidCheckFile.BadKey'         = 'The key {0} is missing or has the wrong type.'
     'Core.UnknownCheckId'                  = 'There is no check with the ID "{0}".'
     'Core.Skipped.NotAdmin.Details'        = 'This check needs administrator rights.'
     'Core.Skipped.NotAdmin.Recommendation' = 'Start PowerShell as administrator and run the check again.'

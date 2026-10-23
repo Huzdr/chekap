@@ -14,4 +14,7 @@ foreach ($file in $private + $public) {
     . $file.FullName
 }
 
+# The check registry is read once. A check file that is not valid stops the import with a localized message.
+$script:ChekapChecks = @(Import-ChekapCheck -Path (Join-Path $PSScriptRoot 'Checks'))
+
 Export-ModuleMember -Function @($public | ForEach-Object { $_.BaseName })
