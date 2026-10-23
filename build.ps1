@@ -9,7 +9,7 @@ param(
 $ErrorActionPreference = 'Stop'
 
 $devModules = @(
-    @{ Name = 'Pester'; Version = '5.5.0' }
+    @{ Name = 'Pester'; Version = '5.5.0'; MaxVersion = '5.99.99' }
     @{ Name = 'PSScriptAnalyzer'; Version = '1.21.0' }
     @{ Name = 'platyPS'; Version = '0.14.2'; Exact = $true }
 )
@@ -24,13 +24,15 @@ foreach ($currentTask in $Task) {
             foreach ($module in $devModules) {
                 $wanted = [version]$module.Version
                 $found = Get-Module -ListAvailable -Name $module.Name |
-                    Where-Object { if ($module.Exact) { $_.Version -eq $wanted } else { $_.Version -ge $wanted } }
+                    Where-Object { if ($module.Exact) { $_.Version -eq $wanted } else { $_.Version -ge $wanted -and (-not $module.MaxVersion -or $_.Version -le [version]$module.MaxVersion) } }
                 if ($found) { continue }
-                $versionArg = if ($module.Exact) { @{ RequiredVersion = $module.Version } } else { @{ MinimumVersion = $module.Version } }
+                $versionArg = if ($module.Exact) { @{ RequiredVersion = $module.Version } } elseif ($module.MaxVersion) { @{ MinimumVersion = $module.Version; MaximumVersion = $module.MaxVersion } } else { @{ MinimumVersion = $module.Version } }
                 Install-Module -Name $module.Name @versionArg -Scope CurrentUser -Force -SkipPublisherCheck
             }
         }
         'Lint' {
+            # Pin Pester first: analyzing Pester test files makes PSScriptAnalyzer auto-load the newest Pester, which then blocks importing 5.x.
+            Import-Module Pester -MinimumVersion 5.5.0 -MaximumVersion 5.99.99
             Import-Module PSScriptAnalyzer -MinimumVersion 1.21.0
             $findings = @(Invoke-ScriptAnalyzer -Path $PSScriptRoot -Recurse -Settings (Join-Path $PSScriptRoot 'PSScriptAnalyzerSettings.psd1'))
             if ($findings.Count -gt 0) {
@@ -39,7 +41,7 @@ foreach ($currentTask in $Task) {
             }
         }
         'Test' {
-            Import-Module Pester -MinimumVersion 5.5.0
+            Import-Module Pester -MinimumVersion 5.5.0 -MaximumVersion 5.99.99
             $config = New-PesterConfiguration
             $config.Run.Path = if ($TestPath) { $TestPath } else { Join-Path $PSScriptRoot 'tests' }
             $config.Run.Exit = $true

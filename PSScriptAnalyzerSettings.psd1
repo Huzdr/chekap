@@ -1,5 +1,5 @@
 ﻿@{
-    Severity = @('Error', 'Warning')
+    Severity = @('Error', 'Warning', 'ParseError')
     Rules    = @{
         PSUseCompatibleSyntax = @{
             Enable         = $true
