@@ -76,7 +76,7 @@
     'SYS-PERF-001.Title' = 'CPU and memory load'
     'SYS-PERF-001.Ok.Details' = 'CPU load is {0:N0}%. Top processes by CPU (%): {1}. Top processes by memory (MB): {2}.'
     'SYS-PERF-001.HighCpu.Details' = 'CPU load is {0:N0}%. Heaviest processes by CPU (%): {1}.'
-    'SYS-PERF-001.NoCounters.Details' = 'The performance counters (WMI classes Win32_PerfFormattedData) are not available on this PC, so the load of the CPU and of the processes cannot be measured.'
+    'SYS-PERF-001.NoCounters.Details' = 'The performance counters (WMI classes Win32_PerfFormattedData) are missing or damaged on this PC, so the load of the CPU and of the processes cannot be measured.'
     'SYS-PERF-001.NoCounters.Recommendation' = 'Rebuild the performance counters: in PowerShell as administrator run lodctr /R and then winmgmt /resyncperf, restart the PC and run the check again.'
     'SYS-PERF-001.HighCpu.Recommendation' = 'Check whether the load is expected: a scan, an update or a backup can load the CPU for a while. If it stays high, restart or update the heaviest application and scan the PC for malware.'
 

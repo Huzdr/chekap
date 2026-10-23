@@ -45,8 +45,8 @@ Describe 'Localization tables' {
         $diff | Should -BeNullOrEmpty
     }
 
-    It 'format placeholders {n} match per key' {
-        $placeholders = { param($text) @([regex]::Matches([string]$text, '\{(\d+)\}') | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique) -join ',' }
+    It 'format placeholders {n}, {n:format} and {n,align} match per key' {
+        $placeholders = { param($text) @([regex]::Matches([string]$text, '\{(\d+)(?:[,:][^}]*)?\}') | ForEach-Object { $_.Value } | Sort-Object -Unique) -join ',' }
         $bad = $script:en.Keys | Where-Object { $script:uk.ContainsKey($_) -and (& $placeholders $script:en[$_]) -ne (& $placeholders $script:uk[$_]) }
         $bad | Should -BeNullOrEmpty
     }

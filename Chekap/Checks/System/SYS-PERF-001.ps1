@@ -41,7 +41,7 @@
     Evaluate      = {
         param($Data, $Settings)
         if (-not $Data.CountersAvailable) {
-            return @{ Status = 'Skipped'; Message = 'NoCounters' }
+            return @{ Status = 'Warning'; Message = 'NoCounters' }
         }
         # "name: number" lists; the unit is in the message text.
         $topCpu = @($Data.TopCpu | Select-Object -First 3 | ForEach-Object { '{0}: {1:N0}' -f $_.Name, $_.CpuPercent }) -join ', '

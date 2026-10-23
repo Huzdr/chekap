@@ -52,7 +52,7 @@
         @{ Id = 'SYS-PERF-001'; Name = 'WarnCpuPercent reached is HighCpu'; Data = @{ CountersAvailable = $true; CpuPercent = 90; LogicalCpus = 8; TopCpu = $topCpu; TopRam = $topRam }; Expect = @(@{ Status = 'Warning'; Message = 'HighCpu' }) }
         @{ Id = 'SYS-PERF-001'; Name = 'no processes still gives a verdict'; Data = @{ CountersAvailable = $true; CpuPercent = 5; LogicalCpus = 8; TopCpu = @(); TopRam = @() }; Expect = @(@{ Status = 'OK'; Message = 'Ok' }) }
 
-        @{ Id = 'SYS-PERF-001'; Name = 'missing performance counters are Skipped'; Data = @{ CountersAvailable = $false }; Expect = @(@{ Status = 'Skipped'; Message = 'NoCounters' }) }
+        @{ Id = 'SYS-PERF-001'; Name = 'missing performance counters are a Warning'; Data = @{ CountersAvailable = $false }; Expect = @(@{ Status = 'Warning'; Message = 'NoCounters' }) }
 
         @{ Id = 'SYS-STARTUP-001'; Name = 'few items is OK'; Data = @{ Items = (& $startupItems 3) }; Expect = @(@{ Status = 'OK'; Message = 'Ok'; Args = @(3) }) }
         @{ Id = 'SYS-STARTUP-001'; Name = 'no items is OK'; Data = @{ Items = @() }; Expect = @(@{ Status = 'OK'; Message = 'Ok'; Args = @(0) }) }
@@ -258,6 +258,7 @@ Describe 'System checks: Collect' {
     }
 
     It 'SYS-STARTUP-001 keeps only Name, Location and User of each startup command' {
+        Mock Get-ItemProperty { $null } -ModuleName Chekap
         Mock Get-CimInstance {
             @(
                 [pscustomobject]@{ Name = 'Updater'; Command = 'C:\Tools\updater.exe /silent'; Location = 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Run'; User = 'Public' }
@@ -271,6 +272,87 @@ Describe 'System checks: Collect' {
         $data.Items[1].Location | Should -Be 'Startup'
         $data.Items[1].User | Should -Be 'PC-042\user'
         ($data.Items[1].Keys | Sort-Object) -join ',' | Should -Be 'Location,Name,User'
+    }
+
+    It 'SYS-STARTUP-001 drops entries disabled in Task Manager and keeps enabled ones' {
+        $enabled = [byte[]](2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+        $enabledAlt = [byte[]](6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+        $disabled = [byte[]](3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+        $disabledAlt = [byte[]](7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+        Mock Get-CimInstance {
+            $userRun = 'HKU\S-1-5-21-1000-2000-3000-1001\SOFTWARE\Microsoft\Windows\CurrentVersion\Run'
+            $machineRun = 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Run'
+            @(
+                [pscustomobject]@{ Name = 'Enabled App'; Command = 'C:\Tools\a.exe'; Location = $userRun; User = 'PC-042\user' }
+                [pscustomobject]@{ Name = 'Disabled App'; Command = 'C:\Tools\b.exe'; Location = $userRun; User = 'PC-042\user' }
+                [pscustomobject]@{ Name = 'Machine Enabled'; Command = 'C:\Tools\c.exe'; Location = $machineRun; User = 'Public' }
+                [pscustomobject]@{ Name = 'Machine Disabled'; Command = 'C:\Tools\d.exe'; Location = $machineRun; User = 'Public' }
+                [pscustomobject]@{ Name = 'Not Listed'; Command = 'C:\Tools\e.exe'; Location = $machineRun; User = 'Public' }
+            )
+        } -ModuleName Chekap -ParameterFilter { $ClassName -eq 'Win32_StartupCommand' }
+        Mock Get-ItemProperty { $null } -ModuleName Chekap
+        Mock Get-ItemProperty { [pscustomobject]@{ 'Enabled App' = $enabled; 'Disabled App' = $disabled; PSPath = 'Registry::x'; PSChildName = 'Run' } }.GetNewClosure() -ModuleName Chekap -ParameterFilter {
+            $LiteralPath -eq 'Registry::HKEY_USERS\S-1-5-21-1000-2000-3000-1001\Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run'
+        }
+        Mock Get-ItemProperty { [pscustomobject]@{ 'Machine Enabled' = $enabledAlt; 'Machine Disabled' = $disabledAlt } }.GetNewClosure() -ModuleName Chekap -ParameterFilter {
+            $LiteralPath -eq 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run'
+        }
+        $check = $script:byId['SYS-STARTUP-001']
+        $data = & $check.Collect $check.Settings
+        ($data.Items | ForEach-Object { $_.Name }) -join ',' | Should -Be 'Enabled App,Machine Enabled,Not Listed'
+    }
+
+    It 'SYS-STARTUP-001 matches Startup-folder entries by shortcut file name' {
+        $enabled = [byte[]](2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+        $disabled = [byte[]](3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+        Mock Get-CimInstance {
+            @(
+                [pscustomobject]@{ Name = 'Sync'; Command = 'C:\Tools\sync.exe'; Location = 'Startup'; User = 'PC-042\user' }
+                [pscustomobject]@{ Name = 'Plain'; Command = 'C:\Tools\plain.exe'; Location = 'Startup'; User = 'PC-042\user' }
+                [pscustomobject]@{ Name = 'Backup'; Command = 'C:\Tools\backup.exe'; Location = 'Common Startup'; User = 'Public' }
+                [pscustomobject]@{ Name = 'Sync'; Command = 'C:\Tools\sync2.exe'; Location = 'Common Startup'; User = 'Public' }
+            )
+        } -ModuleName Chekap -ParameterFilter { $ClassName -eq 'Win32_StartupCommand' }
+        Mock Get-ItemProperty { $null } -ModuleName Chekap
+        # Only the user Startup folder disables Sync.lnk; the same name in the common folder is a different entry.
+        Mock Get-ItemProperty { [pscustomobject]@{ 'Sync.lnk' = $disabled; 'Unrelated.lnk' = $disabled } }.GetNewClosure() -ModuleName Chekap -ParameterFilter {
+            $LiteralPath -eq 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\StartupFolder'
+        }
+        Mock Get-ItemProperty { [pscustomobject]@{ 'Backup.lnk' = $enabled } }.GetNewClosure() -ModuleName Chekap -ParameterFilter {
+            $LiteralPath -eq 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\StartupFolder'
+        }
+        $check = $script:byId['SYS-STARTUP-001']
+        $data = & $check.Collect $check.Settings
+        (@($data.Items | ForEach-Object { '{0}/{1}' -f $_.Name, $_.Location }) -join ',') | Should -Be 'Plain/Startup,Backup/Common Startup,Sync/Common Startup'
+    }
+
+    It 'SYS-STARTUP-001 reads Run32 for 32-bit Run entries' {
+        $enabled = [byte[]](2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+        $disabled = [byte[]](3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+        Mock Get-CimInstance {
+            @([pscustomobject]@{ Name = 'Legacy'; Command = 'C:\Tools\old.exe'; Location = 'HKLM\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Run'; User = 'Public' })
+        } -ModuleName Chekap -ParameterFilter { $ClassName -eq 'Win32_StartupCommand' }
+        Mock Get-ItemProperty { $null } -ModuleName Chekap
+        # The 64-bit Run key calls the same name enabled; only Run32 decides for a WOW6432Node entry.
+        Mock Get-ItemProperty { [pscustomobject]@{ Legacy = $enabled } }.GetNewClosure() -ModuleName Chekap -ParameterFilter { $LiteralPath -like 'HKLM:*StartupApproved\Run' }
+        Mock Get-ItemProperty { [pscustomobject]@{ Legacy = $disabled } }.GetNewClosure() -ModuleName Chekap -ParameterFilter { $LiteralPath -like 'HKLM:*StartupApproved\Run32' }
+        $check = $script:byId['SYS-STARTUP-001']
+        $data = & $check.Collect $check.Settings
+        @($data.Items).Count | Should -Be 0
+    }
+
+    It 'SYS-STARTUP-001 keeps everything when there is no StartupApproved key' {
+        Mock Get-CimInstance {
+            @(
+                [pscustomobject]@{ Name = 'One'; Command = 'C:\Tools\1.exe'; Location = 'HKU\S-1-5-21-1000-2000-3000-1001\SOFTWARE\Microsoft\Windows\CurrentVersion\Run'; User = 'PC-042\user' }
+                [pscustomobject]@{ Name = 'Two'; Command = 'C:\Tools\2.exe'; Location = 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Run'; User = 'Public' }
+                [pscustomobject]@{ Name = 'Three'; Command = 'C:\Tools\3.exe'; Location = 'Startup'; User = 'PC-042\user' }
+            )
+        } -ModuleName Chekap -ParameterFilter { $ClassName -eq 'Win32_StartupCommand' }
+        Mock Get-ItemProperty { $null } -ModuleName Chekap
+        $check = $script:byId['SYS-STARTUP-001']
+        $data = & $check.Collect $check.Settings
+        ($data.Items | ForEach-Object { $_.Name }) -join ',' | Should -Be 'One,Two,Three'
     }
 
     It 'SYS-MEMORY-001 reads the memory sizes and sums the page files' {
