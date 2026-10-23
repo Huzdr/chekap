@@ -310,11 +310,11 @@ Describe 'System checks: Collect' {
                 [pscustomobject]@{ Name = 'Sync'; Command = 'C:\Tools\sync.exe'; Location = 'Startup'; User = 'PC-042\user' }
                 [pscustomobject]@{ Name = 'Plain'; Command = 'C:\Tools\plain.exe'; Location = 'Startup'; User = 'PC-042\user' }
                 [pscustomobject]@{ Name = 'Backup'; Command = 'C:\Tools\backup.exe'; Location = 'Common Startup'; User = 'Public' }
-                [pscustomobject]@{ Name = 'Sync'; Command = 'C:\Tools\sync2.exe'; Location = 'Common Startup'; User = 'Public' }
+                [pscustomobject]@{ Name = 'Other'; Command = 'C:\Tools\other.exe'; Location = 'Common Startup'; User = 'Public' }
             )
         } -ModuleName Chekap -ParameterFilter { $ClassName -eq 'Win32_StartupCommand' }
         Mock Get-ItemProperty { $null } -ModuleName Chekap
-        # Only the user Startup folder disables Sync.lnk; the same name in the common folder is a different entry.
+        # The user's switch store has Sync.lnk and an unrelated file turned off.
         Mock Get-ItemProperty { [pscustomobject]@{ 'Sync.lnk' = $disabled; 'Unrelated.lnk' = $disabled } }.GetNewClosure() -ModuleName Chekap -ParameterFilter {
             $LiteralPath -eq 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\StartupFolder'
         }
@@ -323,7 +323,70 @@ Describe 'System checks: Collect' {
         }
         $check = $script:byId['SYS-STARTUP-001']
         $data = & $check.Collect $check.Settings
-        (@($data.Items | ForEach-Object { '{0}/{1}' -f $_.Name, $_.Location }) -join ',') | Should -Be 'Plain/Startup,Backup/Common Startup,Sync/Common Startup'
+        (@($data.Items | ForEach-Object { '{0}/{1}' -f $_.Name, $_.Location }) -join ',') | Should -Be 'Plain/Startup,Backup/Common Startup,Other/Common Startup'
+    }
+
+    It 'SYS-STARTUP-001 honours a per-user switch for a machine-wide Run entry' {
+        $enabled = [byte[]](2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+        $disabled = [byte[]](3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+        Mock Get-CimInstance {
+            $machineRun = 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Run'
+            @(
+                [pscustomobject]@{ Name = 'Switched Off By User'; Command = 'C:\Tools\a.exe'; Location = $machineRun; User = 'Public' }
+                [pscustomobject]@{ Name = 'Kept'; Command = 'C:\Tools\b.exe'; Location = $machineRun; User = 'Public' }
+            )
+        } -ModuleName Chekap -ParameterFilter { $ClassName -eq 'Win32_StartupCommand' }
+        Mock Get-ItemProperty { $null } -ModuleName Chekap
+        # The machine key calls both enabled; only the current user's key has the switch.
+        Mock Get-ItemProperty { [pscustomobject]@{ 'Switched Off By User' = $enabled; Kept = $enabled } }.GetNewClosure() -ModuleName Chekap -ParameterFilter {
+            $LiteralPath -eq 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run'
+        }
+        Mock Get-ItemProperty { [pscustomobject]@{ 'Switched Off By User' = $disabled } }.GetNewClosure() -ModuleName Chekap -ParameterFilter {
+            $LiteralPath -eq 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run'
+        }
+        $check = $script:byId['SYS-STARTUP-001']
+        $data = & $check.Collect $check.Settings
+        ($data.Items | ForEach-Object { $_.Name }) -join ',' | Should -Be 'Kept'
+    }
+
+    It 'SYS-STARTUP-001 honours a per-user switch for a Common Startup entry' {
+        $enabled = [byte[]](2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+        $disabled = [byte[]](3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+        Mock Get-CimInstance {
+            @(
+                [pscustomobject]@{ Name = 'Backup'; Command = 'C:\Tools\backup.exe'; Location = 'Common Startup'; User = 'Public' }
+                [pscustomobject]@{ Name = 'Kept'; Command = 'C:\Tools\kept.exe'; Location = 'Common Startup'; User = 'Public' }
+            )
+        } -ModuleName Chekap -ParameterFilter { $ClassName -eq 'Win32_StartupCommand' }
+        Mock Get-ItemProperty { $null } -ModuleName Chekap
+        Mock Get-ItemProperty { [pscustomobject]@{ 'Backup.lnk' = $enabled; 'Kept.lnk' = $enabled } }.GetNewClosure() -ModuleName Chekap -ParameterFilter {
+            $LiteralPath -eq 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\StartupFolder'
+        }
+        Mock Get-ItemProperty { [pscustomobject]@{ 'Backup.lnk' = $disabled } }.GetNewClosure() -ModuleName Chekap -ParameterFilter {
+            $LiteralPath -eq 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\StartupFolder'
+        }
+        $check = $script:byId['SYS-STARTUP-001']
+        $data = & $check.Collect $check.Settings
+        ($data.Items | ForEach-Object { $_.Name }) -join ',' | Should -Be 'Kept'
+    }
+
+    It 'SYS-STARTUP-001 still drops a machine-wide Run entry that is disabled only in HKLM' {
+        $enabled = [byte[]](2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+        $disabled = [byte[]](3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+        Mock Get-CimInstance {
+            $machineRun = 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Run'
+            @(
+                [pscustomobject]@{ Name = 'Switched Off By Admin'; Command = 'C:\Tools\a.exe'; Location = $machineRun; User = 'Public' }
+                [pscustomobject]@{ Name = 'Kept'; Command = 'C:\Tools\b.exe'; Location = $machineRun; User = 'Public' }
+            )
+        } -ModuleName Chekap -ParameterFilter { $ClassName -eq 'Win32_StartupCommand' }
+        Mock Get-ItemProperty { $null } -ModuleName Chekap
+        Mock Get-ItemProperty { [pscustomobject]@{ 'Switched Off By Admin' = $disabled; Kept = $enabled } }.GetNewClosure() -ModuleName Chekap -ParameterFilter {
+            $LiteralPath -eq 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run'
+        }
+        $check = $script:byId['SYS-STARTUP-001']
+        $data = & $check.Collect $check.Settings
+        ($data.Items | ForEach-Object { $_.Name }) -join ',' | Should -Be 'Kept'
     }
 
     It 'SYS-STARTUP-001 reads Run32 for 32-bit Run entries' {

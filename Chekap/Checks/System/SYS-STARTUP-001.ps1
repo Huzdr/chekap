@@ -24,20 +24,22 @@
             param($Entry)
             $location = [string]$Entry.Location
             $folder = $location -eq 'Startup' -or $location -eq 'Common Startup'
-            if ($folder) {
-                $root = if ($location -eq 'Startup') { 'HKCU:' } else { 'HKLM:' }
-                $subKey = 'StartupFolder'
-            }
+            # Machine-wide entries (HKLM Run, Common Startup) can be switched off by the user in HKCU as well as in HKLM: either one counts.
+            if ($location -eq 'Startup') { $roots = @('HKCU:'); $subKey = 'StartupFolder' }
+            elseif ($location -eq 'Common Startup') { $roots = @('HKLM:', 'HKCU:'); $subKey = 'StartupFolder' }
             else {
                 $subKey = if ($location -like '*\WOW6432Node\*') { 'Run32' } else { 'Run' }
-                if ($location -like 'HKLM\*') { $root = 'HKLM:' }
-                elseif ($location -match '^HKU\\([^\\]+)\\') { $root = "Registry::HKEY_USERS\$($Matches[1])" }
+                if ($location -like 'HKLM\*') { $roots = @('HKLM:', 'HKCU:') }
+                elseif ($location -match '^HKU\\([^\\]+)\\') { $roots = @("Registry::HKEY_USERS\$($Matches[1])") }
                 else { return $false }
             }
-            if (-not $cache.ContainsKey("$root|$subKey")) { $cache["$root|$subKey"] = @(& $disabledNames $root $subKey) }
             $name = [string]$Entry.Name
-            # A Startup folder value is "<file name>.lnk" while the entry name has no extension.
-            @($cache["$root|$subKey"] | Where-Object { $_ -eq $name -or ($folder -and [System.IO.Path]::GetFileNameWithoutExtension($_) -eq $name) }).Count -gt 0
+            foreach ($root in $roots) {
+                if (-not $cache.ContainsKey("$root|$subKey")) { $cache["$root|$subKey"] = @(& $disabledNames $root $subKey) }
+                # A Startup folder value is "<file name>.lnk" while the entry name has no extension.
+                if (@($cache["$root|$subKey"] | Where-Object { $_ -eq $name -or ($folder -and [System.IO.Path]::GetFileNameWithoutExtension($_) -eq $name) }).Count -gt 0) { return $true }
+            }
+            $false
         }
         @{
             Items = @(Get-CimInstance -ClassName Win32_StartupCommand | Where-Object { -not (& $isDisabled $_) } | ForEach-Object {
