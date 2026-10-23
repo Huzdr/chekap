@@ -151,6 +151,77 @@ Describe 'Invoke-ChekapCheck' {
         }
     }
 
+    # The checks below are written inside InModuleScope, like a real check file: bound to the module, so they see the runner's preferences.
+    It 'a non-terminating error in Collect gives Error, not OK' {
+        InModuleScope Chekap -Parameters @{ S = $script:fakeStrings } {
+            $ErrorActionPreference = 'Continue' # a normal session; Pester itself runs with Stop, which would hide the bug
+            $check = @{
+                Id = 'TST-001'; Category = 'System'; RequiresAdmin = $false; MinBuild = 0; References = @(); Settings = @{}
+                Collect = { Get-Item -LiteralPath 'C:\Chekap-No-Such-Path'; @{ Free = 5 } }
+                Evaluate = { param($Data) @{ Status = 'OK'; Message = 'Ok'; Args = @($Data.Free) } }
+            }
+            $r = @(Invoke-ChekapCheck -Check $check -Language en 2>$null)
+            $r.Count | Should -Be 1
+            $r[0].Status | Should -Be 'Error'
+            $r[0].Details | Should -BeLike 'Could not collect the data: *'
+        }
+    }
+
+    It 'a non-terminating error in Evaluate gives Error, not OK' {
+        InModuleScope Chekap {
+            $ErrorActionPreference = 'Continue' # a normal session; Pester itself runs with Stop, which would hide the bug
+            $check = @{
+                Id = 'TST-001'; Category = 'System'; RequiresAdmin = $false; MinBuild = 0; References = @(); Settings = @{}
+                Collect = { @{ Free = 5 } }
+                Evaluate = { Get-Item -LiteralPath 'C:\Chekap-No-Such-Path'; @{ Status = 'OK'; Message = 'Ok'; Args = @(1) } }
+            }
+            $r = @(Invoke-ChekapCheck -Check $check -Language en 2>$null)
+            $r.Count | Should -Be 1
+            $r[0].Status | Should -Be 'Error'
+            $r[0].Details | Should -BeLike 'Could not evaluate the collected data: *'
+        }
+    }
+
+    It 'an explicit -ErrorAction SilentlyContinue in a check still wins' {
+        InModuleScope Chekap {
+            $ErrorActionPreference = 'Continue' # a normal session; Pester itself runs with Stop, which would hide the bug
+            $check = @{
+                Id = 'TST-001'; Category = 'System'; RequiresAdmin = $false; MinBuild = 0; References = @(); Settings = @{}
+                Collect = { Get-Item -LiteralPath 'C:\Chekap-No-Such-Path' -ErrorAction SilentlyContinue; @{ Free = 5 } }
+                Evaluate = { param($Data) @{ Status = 'OK'; Message = 'Ok'; Args = @($Data.Free) } }
+            }
+            $r = @(Invoke-ChekapCheck -Check $check -Language en)
+            $r.Count | Should -Be 1
+            $r[0].Status | Should -Be 'OK'
+        }
+    }
+
+    It 'Evaluate that yields no verdict gives one Error' -ForEach @(
+        @{ Name = 'nothing'; Evaluate = { } }
+        @{ Name = 'only $null'; Evaluate = { $null } }
+    ) {
+        $check = & $script:newCheck 'TST-001' 'System' $script:okCollect $Evaluate
+        InModuleScope Chekap -Parameters @{ C = $check; S = $script:fakeStrings } {
+            $r = @(Invoke-ChekapCheck -Check $C -Language en)
+            $r.Count | Should -Be 1
+            $r[0].Status | Should -Be 'Error'
+            $r[0].Details | Should -Be $S['Core.Error.NoVerdict.Details']
+            $r[0].Details | Should -Not -Be 'Core.Error.NoVerdict.Details'
+            $r[0].Recommendation | Should -Be $S['Core.Error.Recommendation']
+        }
+    }
+
+    It 'prints the exception to the verbose stream when Collect or Evaluate fails' {
+        $bad = & $script:newCheck 'TST-001' 'System' { throw 'boom disk' } $script:okEvaluate
+        $bad2 = & $script:newCheck 'TST-002' 'System' $script:okCollect { throw 'bad logic' }
+        InModuleScope Chekap -Parameters @{ B = $bad; B2 = $bad2 } {
+            $verbose = @(Invoke-ChekapCheck -Check $B, $B2 -Language en -Verbose 4>&1 |
+                    Where-Object { $_ -is [System.Management.Automation.VerboseRecord] } | ForEach-Object { $_.Message })
+            @($verbose | Where-Object { $_ -like '*boom disk*' }).Count | Should -Be 1
+            @($verbose | Where-Object { $_ -like '*bad logic*' }).Count | Should -Be 1
+        }
+    }
+
     It 'Evaluate returning two verdicts gives two results with Targets' {
         $check = & $script:newCheck 'TST-001' 'Printing' $script:okCollect {
             @{ Status = 'Critical'; Message = 'Bad'; Args = @('x'); Target = 'PRN-2F-HP' }

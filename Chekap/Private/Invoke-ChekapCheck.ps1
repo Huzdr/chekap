@@ -10,6 +10,10 @@
         [string]$Language
     )
 
+    # Collect and Evaluate inherit this: a non-terminating error must become an Error result, not an OK with a red line.
+    # An explicit -ErrorAction in a check still wins.
+    $ErrorActionPreference = 'Stop'
+
     $strings = Get-ChekapStringTable -Language $Language
     $build = Get-ChekapOSBuild
 
@@ -40,6 +44,7 @@
             $data = & $item.Collect $item.Settings
         }
         catch {
+            Write-Verbose $_.Exception.ToString()
             New-ChekapResult @base -Status Error `
                 -Details (Get-ChekapText -Strings $strings -Key 'Core.Error.Collect.Details' -FormatArgs $_.Exception.Message) `
                 -Recommendation (Get-ChekapText -Strings $strings -Key 'Core.Error.Recommendation')
@@ -48,7 +53,8 @@
 
         try {
             # Built in full first: a bad verdict must not leave a half list of results.
-            $results = @(foreach ($verdict in @(& $item.Evaluate $data $item.Settings)) {
+            $verdicts = @(& $item.Evaluate $data $item.Settings | Where-Object { $null -ne $_ })
+            $results = @(foreach ($verdict in $verdicts) {
                     $prefix = "$($item.Id).$($verdict.Message)"
                     $verdictArgs = @()
                     if ($null -ne $verdict.Args) { $verdictArgs = @($verdict.Args) }
@@ -59,8 +65,16 @@
                 })
         }
         catch {
+            Write-Verbose $_.Exception.ToString()
             New-ChekapResult @base -Status Error `
                 -Details (Get-ChekapText -Strings $strings -Key 'Core.Error.Evaluate.Details' -FormatArgs $_.Exception.Message) `
+                -Recommendation (Get-ChekapText -Strings $strings -Key 'Core.Error.Recommendation')
+            continue
+        }
+        # A check that says nothing must not vanish from the report.
+        if ($results.Count -eq 0) {
+            New-ChekapResult @base -Status Error `
+                -Details (Get-ChekapText -Strings $strings -Key 'Core.Error.NoVerdict.Details') `
                 -Recommendation (Get-ChekapText -Strings $strings -Key 'Core.Error.Recommendation')
             continue
         }

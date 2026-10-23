@@ -21,6 +21,7 @@
     'Core.Skipped.OldBuild.Recommendation' = 'Виправляти нічого не потрібно: перевірка не стосується цієї версії Windows.'
     'Core.Error.Collect.Details'           = 'Не вдалося зібрати дані: {0}'
     'Core.Error.Evaluate.Details'          = 'Не вдалося обробити зібрані дані: {0}'
+    'Core.Error.NoVerdict.Details'         = 'Перевірка завершилась, не повернувши жодного результату.'
     'Core.Error.Recommendation'            = 'Повторіть перевірку з параметром -Verbose. Якщо помилка повторюється, повідомте про неї в репозиторії Chekap.'
     'Core.Verbose.Running'                 = 'Виконується перевірка {0}'
     'Core.Verbose.ReportWritten'           = 'Звіт збережено: {0}'

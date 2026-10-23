@@ -21,6 +21,7 @@
     'Core.Skipped.OldBuild.Recommendation' = 'Nothing to fix: this check does not apply to this version of Windows.'
     'Core.Error.Collect.Details'           = 'Could not collect the data: {0}'
     'Core.Error.Evaluate.Details'          = 'Could not evaluate the collected data: {0}'
+    'Core.Error.NoVerdict.Details'         = 'The check finished without returning a result.'
     'Core.Error.Recommendation'            = 'Run the check again with -Verbose. If the error repeats, report it in the Chekap repository.'
     'Core.Verbose.Running'                 = 'Running check {0}'
     'Core.Verbose.ReportWritten'           = 'Report written to {0}'
