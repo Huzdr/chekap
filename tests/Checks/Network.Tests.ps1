@@ -1,5 +1,4 @@
 ﻿BeforeDiscovery {
-    $dash = [string][char]0x2014
     $adapter = { param($name, $mediaType, $mbps) @{ Name = $name; Description = 'Contoso Network Adapter'; MediaType = $mediaType; SpeedBps = [long]$mbps * 1000000 } }
     $address = { param($alias, $ip) @{ Alias = $alias; IP = $ip; PrefixOrigin = 'Dhcp' } }
     $route = { param($alias, $gateway) @{ Alias = $alias; NextHop = $gateway } }
@@ -74,7 +73,9 @@
         @{ Id = 'NET-PROFILE-001'; Name = 'every profile gets its own verdict'; Data = @{ Profiles = @((& $netProfile 'Ethernet' 'contoso.local' 'Private'), (& $netProfile 'Wi-Fi' 'Guest Network' 'Public')) }; Expect = @(@{ Status = 'OK'; Message = 'Ok'; Target = 'Ethernet' }, @{ Status = 'Warning'; Message = 'Public'; Target = 'Wi-Fi' }) }
 
         @{ Id = 'NET-TIME-001'; Name = 'no offset is NoSource with the source'; Data = (& $time $null 'ntp.contoso.local'); Expect = @(@{ Status = 'Warning'; Message = 'NoSource'; Args = @('ntp.contoso.local') }) }
-        @{ Id = 'NET-TIME-001'; Name = 'no source at all is NoSource with a dash'; Data = (& $time $null $null); Expect = @(@{ Status = 'Warning'; Message = 'NoSource'; Args = @($dash) }) }
+        @{ Id = 'NET-TIME-001'; Name = 'no source configured is NoSourceConfigured, without Args'; Data = (& $time $null $null); Expect = @(@{ Status = 'Warning'; Message = 'NoSourceConfigured'; Args = @() }) }
+        @{ Id = 'NET-TIME-001'; Name = 'an empty source is NoSourceConfigured too'; Data = (& $time $null ''); Expect = @(@{ Status = 'Warning'; Message = 'NoSourceConfigured' }) }
+        @{ Id = 'NET-TIME-001'; Name = 'a configured source that answers nothing is NoSource, not NoSourceConfigured'; Data = (& $time $null 'ntp.contoso.local'); Expect = @(@{ Status = 'Warning'; Message = 'NoSource' }) }
         @{ Id = 'NET-TIME-001'; Name = 'a small offset is OK with the offset and the source'; Data = (& $time 0.0123456 'ntp.contoso.local'); Expect = @(@{ Status = 'OK'; Message = 'Ok'; Args = @(0.0123456, 'ntp.contoso.local') }) }
         @{ Id = 'NET-TIME-001'; Name = 'a negative offset is judged by its size'; Data = (& $time -0.5 'ntp.contoso.local'); Expect = @(@{ Status = 'OK'; Message = 'Ok'; Args = @(0.5, 'ntp.contoso.local') }) }
         @{ Id = 'NET-TIME-001'; Name = 'zero offset is OK'; Data = (& $time 0 'ntp.contoso.local'); Expect = @(@{ Status = 'OK'; Message = 'Ok' }) }
@@ -91,24 +92,14 @@
         @{ Id = 'NET-ADAPTER-001'; Settings = @{ SlowMbps = 100 } }
         @{ Id = 'NET-DHCP-001'; Settings = @{} }
         @{ Id = 'NET-GATEWAY-001'; Settings = @{ TimeoutMs = 1000 } }
-        @{ Id = 'NET-DNS-001'; Settings = @{ ProbeName = 'localhost'; PublicResolvers = $publicResolvers } }
-        @{ Id = 'NET-DNS-002'; Settings = @{ ExternalName = 'www.microsoft.com' } }
+        @{ Id = 'NET-DNS-001'; Settings = @{ ProbeName = 'localhost'; PublicResolvers = $publicResolvers; TimeoutMs = 1500 } }
+        @{ Id = 'NET-DNS-002'; Settings = @{ ExternalName = 'www.microsoft.com'; TimeoutMs = 1500 } }
         @{ Id = 'NET-INTERNET-001'; Settings = @{ Host = 'www.microsoft.com'; Port = 443; TimeoutMs = 3000 } }
         @{ Id = 'NET-PROXY-001'; Settings = @{ TimeoutMs = 1000 } }
         @{ Id = 'NET-PROFILE-001'; Settings = @{} }
         @{ Id = 'NET-TIME-001'; Settings = @{ WarnSeconds = 60; CriticalSeconds = 300 } }
     )
 
-    # A DNS server answers with an error code: the DNS response codes (rcode) are native errors 9001-9999.
-    $script:rcodeCases = @(
-        @{ Code = 9003; Responds = $true; Meaning = 'NXDOMAIN' }
-        @{ Code = 9001; Responds = $true; Meaning = 'lowest rcode' }
-        @{ Code = 9002; Responds = $true; Meaning = 'SERVFAIL' }
-        @{ Code = 9999; Responds = $true; Meaning = 'highest rcode' }
-        @{ Code = 1460; Responds = $false; Meaning = 'timeout' }
-        @{ Code = 9000; Responds = $false; Meaning = 'below the rcode range' }
-        @{ Code = 10000; Responds = $false; Meaning = 'above the rcode range' }
-    )
 }
 
 BeforeAll {
@@ -181,6 +172,15 @@ Describe 'Network checks: Evaluate' {
     }
 }
 
+Describe 'Network checks: advice' {
+    It 'NET-TIME-001 advises "w32tm /resync /rediscover" in <Language>, never the undocumented /force' -ForEach @(@{ Language = 'en-US' }, @{ Language = 'uk-UA' }) {
+        foreach ($key in 'NET-TIME-001.Drift.Recommendation', 'NET-TIME-001.DriftKerberos.Recommendation') {
+            $script:tables[$Language][$key] | Should -Not -Match '/force'
+        }
+        $script:tables[$Language]['NET-TIME-001.DriftKerberos.Recommendation'] | Should -Match 'w32tm /resync /rediscover'
+    }
+}
+
 Describe 'Network checks: Collect' {
     Context 'NET-ADAPTER-001' {
         It 'keeps only connected physical adapters and maps their fields' {
@@ -221,15 +221,11 @@ Describe 'Network checks: Collect' {
 
     Context 'NET-DHCP-001' {
         BeforeEach {
-            Mock Get-NetAdapter {
-                @(
-                    [pscustomobject]@{ Name = 'Ethernet'; InterfaceIndex = 3; Status = 'Up' }
-                    [pscustomobject]@{ Name = 'Ethernet 2'; InterfaceIndex = 4; Status = 'Disconnected' }
-                )
-            } -ModuleName Chekap
+            # Connected = a physical NIC (index 3) and a Hyper-V external switch (index 9) that carries the default route.
+            Mock Get-ChekapConnectedInterface { @(@{ Index = 3; Alias = 'Ethernet' }, @{ Index = 9; Alias = 'vEthernet (External)' }) } -ModuleName Chekap
         }
 
-        It 'returns the IPv4 addresses of connected adapters only' {
+        It 'returns the IPv4 addresses of connected interfaces only' {
             Mock Get-NetIPAddress {
                 @(
                     [pscustomobject]@{ InterfaceIndex = 3; InterfaceAlias = 'Ethernet'; IPAddress = '192.0.2.25'; PrefixOrigin = 'Dhcp' }
@@ -245,6 +241,20 @@ Describe 'Network checks: Collect' {
             $data.Addresses[0].IP | Should -Be '192.0.2.25'
             $data.Addresses[0].PrefixOrigin | Should -Be 'Dhcp'
             $data.Addresses[1].IP | Should -Be '169.254.7.8'
+        }
+
+        It 'finds the address of a vEthernet interface that has taken over from the physical NIC' {
+            Mock Get-NetIPAddress {
+                @(
+                    [pscustomobject]@{ InterfaceIndex = 9; InterfaceAlias = 'vEthernet (External)'; IPAddress = '169.254.20.30'; PrefixOrigin = 'WellKnown' }
+                    [pscustomobject]@{ InterfaceIndex = 12; InterfaceAlias = 'vEthernet (WSL)'; IPAddress = '198.51.100.1'; PrefixOrigin = 'Manual' }
+                )
+            } -ModuleName Chekap
+            $check = $script:byId['NET-DHCP-001']
+            $data = & $check.Collect $check.Settings
+            @($data.Addresses).Count | Should -Be 1
+            $data.Addresses[0].Alias | Should -Be 'vEthernet (External)'
+            $data.Addresses[0].IP | Should -Be '169.254.20.30'
         }
 
         It 'turns the PrefixOrigin enum into a string' {
@@ -310,13 +320,7 @@ Describe 'Network checks: Collect' {
 
     Context 'NET-DNS-001' {
         BeforeEach {
-            Mock Get-NetAdapter {
-                @(
-                    [pscustomobject]@{ Name = 'Ethernet'; InterfaceIndex = 3; Status = 'Up' }
-                    [pscustomobject]@{ Name = 'Wi-Fi'; InterfaceIndex = 5; Status = 'Up' }
-                    [pscustomobject]@{ Name = 'Ethernet 2'; InterfaceIndex = 4; Status = 'Disconnected' }
-                )
-            } -ModuleName Chekap
+            Mock Get-ChekapConnectedInterface { @(@{ Index = 3; Alias = 'Ethernet' }, @{ Index = 5; Alias = 'Wi-Fi' }) } -ModuleName Chekap
             Mock Get-DnsClientServerAddress {
                 @(
                     [pscustomobject]@{ InterfaceIndex = 3; ServerAddresses = @('192.0.2.53', '192.0.2.54') }
@@ -325,44 +329,62 @@ Describe 'Network checks: Collect' {
                     [pscustomobject]@{ InterfaceIndex = 3; ServerAddresses = @() }
                 )
             } -ModuleName Chekap
-            Mock Resolve-DnsName { [pscustomobject]@{ Name = 'localhost'; IPAddress = '127.0.0.1' } } -ModuleName Chekap
+            Mock Test-ChekapDnsServer { @{ Responds = $true; RCode = 0; AnswerCount = 1; Ms = 3 } } -ModuleName Chekap
             Mock Get-CimInstance { [pscustomobject]@{ PartOfDomain = $false; Domain = 'WORKGROUP' } } -ModuleName Chekap -ParameterFilter { $ClassName -eq 'Win32_ComputerSystem' }
         }
 
-        It 'lists each server of the connected adapters once, in order, and asks it for ProbeName' {
+        It 'lists each server of the connected interfaces once, in order, and asks it for ProbeName within TimeoutMs' {
             $check = $script:byId['NET-DNS-001']
             $data = & $check.Collect $check.Settings
             Should -Invoke Get-DnsClientServerAddress -ModuleName Chekap -Times 1 -Exactly -ParameterFilter { $AddressFamily -eq 'IPv4' }
             (@($data.Servers) -join ',') | Should -Be '192.0.2.53,192.0.2.54'
             @($data.Probe.Keys).Count | Should -Be 2
-            Should -Invoke Resolve-DnsName -ModuleName Chekap -Times 1 -Exactly -ParameterFilter { $Name -eq 'localhost' -and $Server -eq '192.0.2.53' -and $DnsOnly -and $QuickTimeout }
-            Should -Invoke Resolve-DnsName -ModuleName Chekap -Times 1 -Exactly -ParameterFilter { $Name -eq 'localhost' -and $Server -eq '192.0.2.54' -and $DnsOnly -and $QuickTimeout }
+            Should -Invoke Test-ChekapDnsServer -ModuleName Chekap -Times 1 -Exactly -ParameterFilter { "$Server" -eq '192.0.2.53' -and $Name -eq 'localhost' -and $TimeoutMs -eq 1500 }
+            Should -Invoke Test-ChekapDnsServer -ModuleName Chekap -Times 1 -Exactly -ParameterFilter { "$Server" -eq '192.0.2.54' -and $Name -eq 'localhost' -and $TimeoutMs -eq 1500 }
+            Should -Invoke Test-ChekapDnsServer -ModuleName Chekap -Times 0 -Exactly -ParameterFilter { "$Server" -eq '192.0.2.99' }
             foreach ($ip in '192.0.2.53', '192.0.2.54') {
                 $data.Probe[$ip].Responds | Should -BeTrue
                 $data.Probe[$ip].Responds | Should -BeOfType [bool]
-                $data.Probe[$ip].Ms | Should -BeOfType [int]
-                $data.Probe[$ip].Ms | Should -BeGreaterOrEqual 0
+                $data.Probe[$ip].Ms | Should -Be 3
             }
             $data.PartOfDomain | Should -BeFalse
         }
 
-        It 'treats DNS rcode error <Code> (<Meaning>) as Responds=<Responds>' -ForEach $script:rcodeCases {
-            Mock Resolve-DnsName { throw (New-Object System.ComponentModel.Win32Exception $Code) }.GetNewClosure() -ModuleName Chekap
+        It 'finds the DNS servers on a vEthernet interface when the physical NIC has none' {
+            Mock Get-ChekapConnectedInterface { @(@{ Index = 3; Alias = 'Ethernet' }, @{ Index = 9; Alias = 'vEthernet (External)' }) } -ModuleName Chekap
+            Mock Get-DnsClientServerAddress {
+                @(
+                    [pscustomobject]@{ InterfaceIndex = 3; ServerAddresses = @() }
+                    [pscustomobject]@{ InterfaceIndex = 9; ServerAddresses = @('192.0.2.10', '192.0.2.11') }
+                    [pscustomobject]@{ InterfaceIndex = 12; ServerAddresses = @('192.0.2.99') }
+                )
+            } -ModuleName Chekap
             $check = $script:byId['NET-DNS-001']
             $data = & $check.Collect $check.Settings
-            $data.Probe['192.0.2.53'].Responds | Should -Be $Responds
-            $data.Probe['192.0.2.54'].Responds | Should -Be $Responds
+            (@($data.Servers) -join ',') | Should -Be '192.0.2.10,192.0.2.11'
+            $data.Probe['192.0.2.10'].Responds | Should -BeTrue
+            Should -Invoke Test-ChekapDnsServer -ModuleName Chekap -Times 2 -Exactly
         }
 
-        It 'treats a failure without a native error code as no answer' {
-            Mock Resolve-DnsName { throw 'something else broke' } -ModuleName Chekap
+        It 'an NXDOMAIN reply still counts as responding' {
+            Mock Test-ChekapDnsServer { @{ Responds = $true; RCode = 3; AnswerCount = 0; Ms = 4 } } -ModuleName Chekap
             $check = $script:byId['NET-DNS-001']
-            { & $check.Collect $check.Settings } | Should -Not -Throw
-            (& $check.Collect $check.Settings).Probe['192.0.2.53'].Responds | Should -BeFalse
+            $data = & $check.Collect $check.Settings
+            $data.Probe['192.0.2.53'].Responds | Should -BeTrue
+            $data.Probe['192.0.2.54'].Responds | Should -BeTrue
+            $data.Probe['192.0.2.53'].RCode | Should -Be 3
+        }
+
+        It 'a server that sends no reply does not respond' {
+            Mock Test-ChekapDnsServer { @{ Responds = $false; RCode = $null; AnswerCount = $null; Ms = $null } } -ModuleName Chekap
+            $check = $script:byId['NET-DNS-001']
+            $data = & $check.Collect $check.Settings
+            $data.Probe['192.0.2.53'].Responds | Should -BeFalse
+            $data.Probe['192.0.2.53'].Ms | Should -BeNullOrEmpty
         }
 
         It 'judges every server by its own answer' {
-            Mock Resolve-DnsName { throw (New-Object System.ComponentModel.Win32Exception 1460) } -ModuleName Chekap -ParameterFilter { $Server -eq '192.0.2.54' }
+            Mock Test-ChekapDnsServer { @{ Responds = $false; RCode = $null; AnswerCount = $null; Ms = $null } } -ModuleName Chekap -ParameterFilter { "$Server" -eq '192.0.2.54' }
             $check = $script:byId['NET-DNS-001']
             $data = & $check.Collect $check.Settings
             $data.Probe['192.0.2.53'].Responds | Should -BeTrue
@@ -377,54 +399,116 @@ Describe 'Network checks: Collect' {
             $data.PartOfDomain | Should -BeTrue
         }
 
-        It 'returns no servers and probes nothing when the adapters have none, and silences the cmdlet error' {
+        It 'returns no servers and probes nothing when the interfaces have none, and silences the cmdlet error' {
             Mock Get-DnsClientServerAddress { } -ModuleName Chekap
             $check = $script:byId['NET-DNS-001']
             $data = & $check.Collect $check.Settings
             @($data.Servers).Count | Should -Be 0
             $data.Probe.Count | Should -Be 0
-            Should -Invoke Resolve-DnsName -ModuleName Chekap -Times 0 -Exactly
+            Should -Invoke Test-ChekapDnsServer -ModuleName Chekap -Times 0 -Exactly
             # The real cmdlet writes an error when nothing matches; the mock cannot, so the switch is checked instead.
             Should -Invoke Get-DnsClientServerAddress -ModuleName Chekap -Times 1 -Exactly -ParameterFilter { $ErrorAction -eq 'SilentlyContinue' }
         }
     }
 
     Context 'NET-DNS-002' {
-        It 'resolves the domain and the external name with the system resolver, type A' {
+        BeforeEach {
+            Mock Get-ChekapConnectedInterface { @(@{ Index = 3; Alias = 'Ethernet' }) } -ModuleName Chekap
+            Mock Get-DnsClientServerAddress { [pscustomobject]@{ InterfaceIndex = 3; ServerAddresses = @('192.0.2.53', '192.0.2.54') } } -ModuleName Chekap
             Mock Get-CimInstance { [pscustomobject]@{ PartOfDomain = $true; Domain = 'contoso.local' } } -ModuleName Chekap -ParameterFilter { $ClassName -eq 'Win32_ComputerSystem' }
-            Mock Resolve-DnsName { [pscustomobject]@{ IPAddress = '192.0.2.10' } } -ModuleName Chekap
+            Mock Test-ChekapDnsServer { @{ Responds = $true; RCode = 0; AnswerCount = 1; Ms = 3 } } -ModuleName Chekap
+        }
+
+        It 'asks the first configured server once for the external name and once for the domain, within TimeoutMs' {
             $check = $script:byId['NET-DNS-002']
             $data = & $check.Collect $check.Settings
-            Should -Invoke Resolve-DnsName -ModuleName Chekap -Times 1 -Exactly -ParameterFilter { $Name -eq 'contoso.local' -and $Type -eq 'A' -and $DnsOnly -and $QuickTimeout -and -not $Server }
-            Should -Invoke Resolve-DnsName -ModuleName Chekap -Times 1 -Exactly -ParameterFilter { $Name -eq 'www.microsoft.com' -and $Type -eq 'A' -and $DnsOnly -and $QuickTimeout -and -not $Server }
+            Should -Invoke Test-ChekapDnsServer -ModuleName Chekap -Times 1 -Exactly -ParameterFilter { "$Server" -eq '192.0.2.53' -and $Name -eq 'www.microsoft.com' -and $TimeoutMs -eq 1500 }
+            Should -Invoke Test-ChekapDnsServer -ModuleName Chekap -Times 1 -Exactly -ParameterFilter { "$Server" -eq '192.0.2.53' -and $Name -eq 'contoso.local' -and $TimeoutMs -eq 1500 }
+            Should -Invoke Test-ChekapDnsServer -ModuleName Chekap -Times 0 -Exactly -ParameterFilter { "$Server" -eq '192.0.2.54' }
             $data.Domain | Should -Be 'contoso.local'
             $data.PartOfDomain | Should -BeTrue
+            $data.Server | Should -Be '192.0.2.53'
             $data.DomainResolves | Should -BeTrue
             $data.DomainResolves | Should -BeOfType [bool]
             $data.ExternalResolves | Should -BeTrue
+            $data.ExternalResolves | Should -BeOfType [bool]
         }
 
-        It 'reports a failing lookup as false' {
-            Mock Get-CimInstance { [pscustomobject]@{ PartOfDomain = $true; Domain = 'contoso.local' } } -ModuleName Chekap -ParameterFilter { $ClassName -eq 'Win32_ComputerSystem' }
-            Mock Resolve-DnsName { [pscustomobject]@{ IPAddress = '192.0.2.10' } } -ModuleName Chekap
-            Mock Resolve-DnsName { throw (New-Object System.ComponentModel.Win32Exception 9003) } -ModuleName Chekap -ParameterFilter { $Name -eq 'www.microsoft.com' }
+        It 'moves on to the next server when the first one does not respond' {
+            Mock Test-ChekapDnsServer { @{ Responds = $false; RCode = $null; AnswerCount = $null; Ms = $null } } -ModuleName Chekap -ParameterFilter { "$Server" -eq '192.0.2.53' }
+            $check = $script:byId['NET-DNS-002']
+            $data = & $check.Collect $check.Settings
+            $data.Server | Should -Be '192.0.2.54'
+            $data.ExternalResolves | Should -BeTrue
+            $data.DomainResolves | Should -BeTrue
+            # The silent server is asked once (for the external name), the one that answers gets both questions.
+            Should -Invoke Test-ChekapDnsServer -ModuleName Chekap -Times 1 -Exactly -ParameterFilter { "$Server" -eq '192.0.2.53' }
+            Should -Invoke Test-ChekapDnsServer -ModuleName Chekap -Times 1 -Exactly -ParameterFilter { "$Server" -eq '192.0.2.54' -and $Name -eq 'www.microsoft.com' }
+            Should -Invoke Test-ChekapDnsServer -ModuleName Chekap -Times 1 -Exactly -ParameterFilter { "$Server" -eq '192.0.2.54' -and $Name -eq 'contoso.local' }
+        }
+
+        It 'a name resolves only with RCode 0 and at least one answer: RCode <RCode>, <AnswerCount> answers gives <Expected>' -ForEach @(
+            @{ RCode = 0; AnswerCount = 1; Expected = $true }
+            @{ RCode = 0; AnswerCount = 4; Expected = $true }
+            @{ RCode = 0; AnswerCount = 0; Expected = $false }
+            @{ RCode = 3; AnswerCount = 0; Expected = $false }
+            @{ RCode = 2; AnswerCount = 0; Expected = $false }
+            @{ RCode = 5; AnswerCount = 0; Expected = $false }
+        ) {
+            Mock Test-ChekapDnsServer { @{ Responds = $true; RCode = $RCode; AnswerCount = $AnswerCount; Ms = 3 } }.GetNewClosure() -ModuleName Chekap
+            $check = $script:byId['NET-DNS-002']
+            $data = & $check.Collect $check.Settings
+            $data.ExternalResolves | Should -Be $Expected
+            $data.DomainResolves | Should -Be $Expected
+        }
+
+        It 'judges the two names separately' {
+            Mock Test-ChekapDnsServer { @{ Responds = $true; RCode = 3; AnswerCount = 0; Ms = 3 } } -ModuleName Chekap -ParameterFilter { $Name -eq 'www.microsoft.com' }
             $check = $script:byId['NET-DNS-002']
             $data = & $check.Collect $check.Settings
             $data.DomainResolves | Should -BeTrue
             $data.ExternalResolves | Should -BeFalse
-            $data.ExternalResolves | Should -BeOfType [bool]
         }
 
-        It 'does not look up the domain name outside a domain' {
+        It 'no responding server gives false for both names and no domain question' {
+            Mock Test-ChekapDnsServer { @{ Responds = $false; RCode = $null; AnswerCount = $null; Ms = $null } } -ModuleName Chekap
+            $check = $script:byId['NET-DNS-002']
+            $data = & $check.Collect $check.Settings
+            $data.Server | Should -BeNullOrEmpty
+            $data.DomainResolves | Should -BeFalse
+            $data.ExternalResolves | Should -BeFalse
+            Should -Invoke Test-ChekapDnsServer -ModuleName Chekap -Times 2 -Exactly
+            Should -Invoke Test-ChekapDnsServer -ModuleName Chekap -Times 0 -Exactly -ParameterFilter { $Name -eq 'contoso.local' }
+        }
+
+        It 'no configured server gives false for both names and asks nothing, and silences the cmdlet error' {
+            Mock Get-DnsClientServerAddress { } -ModuleName Chekap
+            $check = $script:byId['NET-DNS-002']
+            $data = & $check.Collect $check.Settings
+            $data.DomainResolves | Should -BeFalse
+            $data.ExternalResolves | Should -BeFalse
+            Should -Invoke Test-ChekapDnsServer -ModuleName Chekap -Times 0 -Exactly
+            Should -Invoke Get-DnsClientServerAddress -ModuleName Chekap -Times 1 -Exactly -ParameterFilter { $ErrorAction -eq 'SilentlyContinue' }
+        }
+
+        It 'does not ask for the domain name outside a domain' {
             Mock Get-CimInstance { [pscustomobject]@{ PartOfDomain = $false; Domain = 'WORKGROUP' } } -ModuleName Chekap -ParameterFilter { $ClassName -eq 'Win32_ComputerSystem' }
-            Mock Resolve-DnsName { [pscustomobject]@{ IPAddress = '192.0.2.10' } } -ModuleName Chekap
             $check = $script:byId['NET-DNS-002']
             $data = & $check.Collect $check.Settings
             $data.PartOfDomain | Should -BeFalse
             $data.DomainResolves | Should -BeNullOrEmpty
             $data.ExternalResolves | Should -BeTrue
-            Should -Invoke Resolve-DnsName -ModuleName Chekap -Times 1 -Exactly
-            Should -Invoke Resolve-DnsName -ModuleName Chekap -Times 0 -Exactly -ParameterFilter { $Name -eq 'WORKGROUP' }
+            Should -Invoke Test-ChekapDnsServer -ModuleName Chekap -Times 1 -Exactly
+            Should -Invoke Test-ChekapDnsServer -ModuleName Chekap -Times 0 -Exactly -ParameterFilter { $Name -eq 'WORKGROUP' }
+        }
+
+        It 'a workgroup PC with no responding server only has a failed external name' {
+            Mock Get-CimInstance { [pscustomobject]@{ PartOfDomain = $false; Domain = 'WORKGROUP' } } -ModuleName Chekap -ParameterFilter { $ClassName -eq 'Win32_ComputerSystem' }
+            Mock Test-ChekapDnsServer { @{ Responds = $false; RCode = $null; AnswerCount = $null; Ms = $null } } -ModuleName Chekap
+            $check = $script:byId['NET-DNS-002']
+            $data = & $check.Collect $check.Settings
+            $data.DomainResolves | Should -BeNullOrEmpty
+            $data.ExternalResolves | Should -BeFalse
         }
     }
 
@@ -573,11 +657,16 @@ Describe 'Network checks: Collect' {
     }
 
     Context 'NET-PROFILE-001' {
+        BeforeEach {
+            # Connected = a physical NIC (index 3) and a Hyper-V external switch (index 9) that carries the default route.
+            Mock Get-ChekapConnectedInterface { @(@{ Index = 3; Alias = 'Ethernet' }, @{ Index = 9; Alias = 'vEthernet (External)' }) } -ModuleName Chekap
+        }
+
         It 'maps profiles and turns the category enum into a string' {
             Mock Get-NetConnectionProfile {
                 @(
-                    [pscustomobject]@{ InterfaceAlias = 'Ethernet'; Name = 'contoso.local'; NetworkCategory = [ChekapTestNetworkCategory]::DomainAuthenticated }
-                    [pscustomobject]@{ InterfaceAlias = 'Wi-Fi'; Name = 'Guest Network'; NetworkCategory = [ChekapTestNetworkCategory]::Public }
+                    [pscustomobject]@{ InterfaceIndex = 3; InterfaceAlias = 'Ethernet'; Name = 'contoso.local'; NetworkCategory = [ChekapTestNetworkCategory]::DomainAuthenticated }
+                    [pscustomobject]@{ InterfaceIndex = 9; InterfaceAlias = 'vEthernet (External)'; Name = 'Guest Network'; NetworkCategory = [ChekapTestNetworkCategory]::Public }
                 )
             } -ModuleName Chekap
             $check = $script:byId['NET-PROFILE-001']
@@ -587,7 +676,38 @@ Describe 'Network checks: Collect' {
             $data.Profiles[0].Name | Should -Be 'contoso.local'
             $data.Profiles[0].Category | Should -BeOfType [string]
             $data.Profiles[0].Category | Should -Be 'DomainAuthenticated'
+            $data.Profiles[1].Alias | Should -Be 'vEthernet (External)'
             $data.Profiles[1].Category | Should -Be 'Public'
+        }
+
+        It 'ignores a Public profile on an interface outside the connected set (WSL, Default Switch)' {
+            Mock Get-NetConnectionProfile {
+                @(
+                    [pscustomobject]@{ InterfaceIndex = 3; InterfaceAlias = 'Ethernet'; Name = 'contoso.local'; NetworkCategory = [ChekapTestNetworkCategory]::Private }
+                    [pscustomobject]@{ InterfaceIndex = 12; InterfaceAlias = 'vEthernet (WSL)'; Name = 'Unidentified network'; NetworkCategory = [ChekapTestNetworkCategory]::Public }
+                    [pscustomobject]@{ InterfaceIndex = 14; InterfaceAlias = 'vEthernet (Default Switch)'; Name = 'Unidentified network'; NetworkCategory = [ChekapTestNetworkCategory]::Public }
+                )
+            } -ModuleName Chekap
+            $check = $script:byId['NET-PROFILE-001']
+            $data = & $check.Collect $check.Settings
+            @($data.Profiles).Count | Should -Be 1
+            $data.Profiles[0].Alias | Should -Be 'Ethernet'
+            $verdicts = @(& $check.Evaluate $data $check.Settings)
+            $verdicts.Count | Should -Be 1
+            $verdicts[0].Message | Should -Be 'Ok'
+        }
+
+        It 'is NoProfile when only profiles outside the connected set are left' {
+            Mock Get-NetConnectionProfile {
+                [pscustomobject]@{ InterfaceIndex = 12; InterfaceAlias = 'vEthernet (WSL)'; Name = 'Unidentified network'; NetworkCategory = [ChekapTestNetworkCategory]::Public }
+            } -ModuleName Chekap
+            $check = $script:byId['NET-PROFILE-001']
+            $data = & $check.Collect $check.Settings
+            @($data.Profiles).Count | Should -Be 0
+            $verdicts = @(& $check.Evaluate $data $check.Settings)
+            $verdicts.Count | Should -Be 1
+            $verdicts[0].Status | Should -Be 'Skipped'
+            $verdicts[0].Message | Should -Be 'NoProfile'
         }
 
         It 'returns an empty list when Windows reports no profile, and silences the cmdlet error' {

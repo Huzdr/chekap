@@ -49,10 +49,11 @@
     }
     Evaluate      = {
         param($Data, $Settings)
+        if (-not $Data.Source) {
+            return @{ Status = 'Warning'; Message = 'NoSourceConfigured' }
+        }
         if ($null -eq $Data.OffsetSeconds) {
-            $source = $Data.Source
-            if (-not $source) { $source = '—' }
-            return @{ Status = 'Warning'; Message = 'NoSource'; Args = @($source) }
+            return @{ Status = 'Warning'; Message = 'NoSource'; Args = @($Data.Source) }
         }
         $seconds = [math]::Abs($Data.OffsetSeconds)
         if ($seconds -ge $Settings.CriticalSeconds) {

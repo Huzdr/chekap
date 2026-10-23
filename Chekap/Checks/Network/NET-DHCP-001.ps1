@@ -9,7 +9,7 @@
     )
     Settings      = @{}
     Collect       = {
-        $connected = @(Get-NetAdapter -Physical | Where-Object Status -eq 'Up' | ForEach-Object { $_.InterfaceIndex })
+        $connected = @(Get-ChekapConnectedInterface | ForEach-Object { $_.Index })
         # No IPv4 address at all is an error of the cmdlet, not a failure of the check.
         $addresses = @(Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue | Where-Object { $_.InterfaceIndex -in $connected } | ForEach-Object {
                 @{

@@ -4,32 +4,24 @@
     RequiresAdmin = $false
     MinBuild      = 0
     References    = @(
-        'https://learn.microsoft.com/powershell/module/dnsclient/resolve-dnsname'
         'https://learn.microsoft.com/powershell/module/dnsclient/get-dnsclientserveraddress'
+        'https://learn.microsoft.com/windows-server/networking/dns/dns-top'
+        'https://www.rfc-editor.org/rfc/rfc1035'
     )
     Settings      = @{
         ProbeName       = 'localhost'
         PublicResolvers = @('8.8.8.8', '8.8.4.4', '1.1.1.1', '1.0.0.1', '9.9.9.9', '149.112.112.112', '208.67.222.222', '208.67.220.220')
+        TimeoutMs       = 1500
     }
     Collect       = {
         param($Settings)
-        $connected = @(Get-NetAdapter -Physical | Where-Object Status -eq 'Up' | ForEach-Object { $_.InterfaceIndex })
+        $connected = @(Get-ChekapConnectedInterface | ForEach-Object { $_.Index })
         $servers = @(Get-DnsClientServerAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue | Where-Object { $_.InterfaceIndex -in $connected } | ForEach-Object { $_.ServerAddresses } | Select-Object -Unique)
-        # shortcut: servers are asked one after another and a dead one costs the QuickTimeout (about 7 s), so many dead servers slow the check; parallel probes if that matters.
+        # shortcut: servers are asked one after another, each for at most TimeoutMs, so a dozen dead servers still take a while; ask them in parallel if that matters.
         $probe = @{}
         foreach ($server in $servers) {
-            $timer = [System.Diagnostics.Stopwatch]::StartNew()
-            $responds = $false
-            try {
-                $null = Resolve-DnsName -Name $Settings.ProbeName -Server $server -DnsOnly -QuickTimeout -ErrorAction Stop
-                $responds = $true
-            }
-            catch {
-                # Native errors 9001-9999 are DNS response codes (9003 = the name does not exist): the server answered, only not with an address.
-                $code = [int]$_.Exception.NativeErrorCode
-                $responds = $code -ge 9001 -and $code -le 9999
-            }
-            $probe[$server] = @{ Responds = $responds; Ms = [int]$timer.ElapsedMilliseconds }
+            # Any reply, even NXDOMAIN or SERVFAIL, shows that the server is alive; only silence is "does not respond".
+            $probe[$server] = Test-ChekapDnsServer -Server $server -Name $Settings.ProbeName -TimeoutMs $Settings.TimeoutMs
         }
         @{
             Servers      = $servers

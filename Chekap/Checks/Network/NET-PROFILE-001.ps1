@@ -9,8 +9,10 @@
     )
     Settings      = @{}
     Collect       = {
+        # Only the connected interfaces are judged: WSL and the Hyper-V Default Switch are Public by design.
+        $connected = @(Get-ChekapConnectedInterface | ForEach-Object { $_.Index })
         # When the Network List Service does not run the cmdlet writes an error; "no profile" is the answer then.
-        $profiles = @(Get-NetConnectionProfile -ErrorAction SilentlyContinue | ForEach-Object {
+        $profiles = @(Get-NetConnectionProfile -ErrorAction SilentlyContinue | Where-Object { $_.InterfaceIndex -in $connected } | ForEach-Object {
                 @{
                     Alias    = [string]$_.InterfaceAlias
                     Name     = [string]$_.Name
