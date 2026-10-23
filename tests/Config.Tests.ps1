@@ -111,12 +111,21 @@ Describe 'Get-ChekapStringTable' {
 
 Describe 'Get-ChekapText' {
     BeforeAll {
-        $script:strings = @{ 'A.Fmt' = 'X {0} and {1}'; 'A.Plain' = 'Plain {0}' }
+        $script:strings = @{ 'A.Fmt' = 'X {0} and {1}'; 'A.Plain' = 'Plain {0}'; 'A.One' = 'Count {0}.' }
     }
 
     It 'formats the arguments' {
         InModuleScope Chekap -Parameters @{ S = $script:strings } {
             Get-ChekapText -Strings $S -Key 'A.Fmt' -FormatArgs 5, 'z' | Should -Be 'X 5 and z'
+        }
+    }
+
+    It 'formats a single falsy argument' -ForEach @(
+        @{ Arg = 0; Expected = 'Count 0.' }
+        @{ Arg = ''; Expected = 'Count .' }
+    ) {
+        InModuleScope Chekap -Parameters @{ S = $script:strings; Arg = $Arg; Expected = $Expected } {
+            Get-ChekapText -Strings $S -Key 'A.One' -FormatArgs $Arg | Should -Be $Expected
         }
     }
 

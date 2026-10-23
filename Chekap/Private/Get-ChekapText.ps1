@@ -18,6 +18,7 @@
         if ($Optional) { return $null }
         return $Key
     }
-    if ($FormatArgs) { return ([string]$Strings[$Key]) -f $FormatArgs }
+    # Count, not truthiness: a single argument such as 0 or '' is falsy but must still be formatted.
+    if ($FormatArgs.Count -gt 0) { return ([string]$Strings[$Key]) -f $FormatArgs }
     [string]$Strings[$Key]
 }
