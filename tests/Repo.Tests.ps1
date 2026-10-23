@@ -32,3 +32,22 @@ Describe 'Repository hygiene' {
         $exported | Should -Be $publicFiles
     }
 }
+
+Describe 'Localization tables' {
+    BeforeAll {
+        $script:en = Import-PowerShellDataFile -Path (Join-Path $script:root 'Chekap/en-US/Chekap.strings.psd1')
+        $script:uk = Import-PowerShellDataFile -Path (Join-Path $script:root 'Chekap/uk-UA/Chekap.strings.psd1')
+    }
+
+    It 'en-US and uk-UA have the same keys' {
+        $diff = Compare-Object -ReferenceObject @($script:en.Keys) -DifferenceObject @($script:uk.Keys) |
+            ForEach-Object { '{0} only in {1}' -f $_.InputObject, $(if ($_.SideIndicator -eq '<=') { 'en-US' } else { 'uk-UA' }) }
+        $diff | Should -BeNullOrEmpty
+    }
+
+    It 'format placeholders {n} match per key' {
+        $placeholders = { param($text) @([regex]::Matches([string]$text, '\{(\d+)\}') | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique) -join ',' }
+        $bad = $script:en.Keys | Where-Object { $script:uk.ContainsKey($_) -and (& $placeholders $script:en[$_]) -ne (& $placeholders $script:uk[$_]) }
+        $bad | Should -BeNullOrEmpty
+    }
+}
