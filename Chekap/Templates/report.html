@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data:">
+<title>Chekap</title>
+<style>
+:root {
+  --bg: #f4f5f7;
+  --surface: #ffffff;
+  --text: #1b2230;
+  --muted: #586274;
+  --border: #d9dee5;
+  --accent: #1f4fbf;
+  --accent-soft: #e8effc;
+  --code-bg: #f1f3f6;
+  --on-accent: #ffffff;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+}
+.s-Critical { --fg: #a4160a; --tint: #fde8e6; --bar: #c62a1c; }
+.s-Error    { --fg: #6b2a99; --tint: #f1e9fa; --bar: #7e3fb3; }
+.s-Warning  { --fg: #8a4b00; --tint: #fff1d6; --bar: #c07600; }
+.s-Skipped  { --fg: #4a5565; --tint: #e9ecf1; --bar: #8a94a4; }
+.s-OK       { --fg: #14693f; --tint: #e3f4ea; --bar: #2e9962; }
+
+@media screen and (prefers-color-scheme: dark) {
+  :root {
+    --bg: #111418;
+    --surface: #181c22;
+    --text: #e5e8ed;
+    --muted: #9ba5b4;
+    --border: #2a313b;
+    --accent: #8ab0ff;
+    --accent-soft: #1c2a44;
+    --code-bg: #0f1216;
+    --on-accent: #0b1220;
+  }
+  .s-Critical { --fg: #ffb4ab; --tint: #3b1a18; --bar: #ef6a5e; }
+  .s-Error    { --fg: #d9b8f5; --tint: #2e1d3d; --bar: #a679d6; }
+  .s-Warning  { --fg: #ffd28a; --tint: #36290f; --bar: #e0a030; }
+  .s-Skipped  { --fg: #b8c1cf; --tint: #262c35; --bar: #7d8899; }
+  .s-OK       { --fg: #8fddb0; --tint: #14301f; --bar: #3fae72; }
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 15px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+  overflow-wrap: anywhere;
+}
+.page { max-width: 880px; margin: 0 auto; padding: 32px 16px 48px; }
+@media (min-width: 640px) { .page { padding: 48px 24px 64px; } }
+h1, h2, p, ul, dl, dd { margin: 0; }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Header */
+.head h1 { font-size: 1.6rem; line-height: 1.25; font-weight: 700; letter-spacing: -0.01em; }
+.meta { display: flex; flex-wrap: wrap; gap: 4px 28px; margin-top: 10px; color: var(--muted); }
+.meta strong { color: var(--text); font-weight: 600; }
+.note {
+  margin-top: 16px;
+  padding: 10px 14px;
+  border-left: 3px solid var(--accent);
+  background: var(--accent-soft);
+  border-radius: 0 6px 6px 0;
+  white-space: pre-wrap;
+}
+.note .lbl { display: block; color: var(--accent); }
+
+.lbl { font-size: 0.8rem; font-weight: 600; letter-spacing: 0.02em; color: var(--muted); }
+
+/* Passport */
+.passport { margin-top: 28px; padding: 18px 20px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; }
+.passport h2 { font-size: 0.8rem; font-weight: 600; letter-spacing: 0.04em; color: var(--muted); margin-bottom: 10px; }
+.passport dl { display: grid; grid-template-columns: 1fr; gap: 8px 40px; }
+@media (min-width: 640px) { .passport dl { grid-template-columns: 1fr 1fr; } }
+.kv { display: flex; gap: 12px; min-width: 0; }
+.kv dt { flex: 0 0 8.5rem; color: var(--muted); }
+.kv dd { flex: 1 1 auto; min-width: 0; font-weight: 500; }
+
+/* Filters */
+.filters { margin-top: 28px; display: grid; gap: 14px; }
+.counters { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+@media (min-width: 640px) { .counters { grid-template-columns: repeat(6, 1fr); } }
+.counter {
+  min-width: 0;
+  padding: 10px 8px 9px;
+  text-align: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-top: 3px solid var(--bar, var(--border));
+  border-radius: 8px;
+  cursor: pointer;
+}
+.counter .num { display: block; font-size: 1.5rem; line-height: 1.2; font-weight: 700; font-variant-numeric: tabular-nums; }
+.counter .lab { display: block; font-size: 0.8rem; color: var(--muted); }
+.counter[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); border-top-color: var(--bar, var(--accent)); }
+.counter[aria-pressed="true"] .lab { color: var(--text); font-weight: 600; }
+.counter:disabled { cursor: default; opacity: 0.55; }
+.counter:not(:disabled):hover { border-color: var(--accent); }
+
+.cats { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.cats .lbl { margin-right: 4px; }
+.pill {
+  padding: 4px 14px;
+  font-size: 0.875rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  cursor: pointer;
+}
+.pill:hover { border-color: var(--accent); }
+.pill[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }
+
+/* Cards */
+.cards { margin-top: 24px; display: grid; gap: 12px; }
+[hidden] { display: none !important; }
+.empty { margin-top: 24px; padding: 24px; text-align: center; color: var(--muted); border: 1px dashed var(--border); border-radius: 8px; }
+.card {
+  min-width: 0;
+  padding: 16px 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--bar);
+  border-radius: 8px;
+}
+.card-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+.badge {
+  flex: 0 0 auto;
+  padding: 1px 9px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--fg);
+  background: var(--tint);
+  border-radius: 4px;
+}
+.card h2 { flex: 1 1 12rem; min-width: 0; font-size: 1.05rem; line-height: 1.35; font-weight: 600; }
+.cid { flex: 0 0 auto; font: 0.75rem var(--mono); color: var(--muted); }
+.target { margin-top: 8px; color: var(--muted); }
+.target .val { color: var(--text); font-weight: 600; }
+.details { margin-top: 8px; }
+.rec { margin-top: 12px; padding: 10px 14px; background: var(--accent-soft); border-left: 3px solid var(--accent); border-radius: 0 6px 6px 0; }
+.rec .lbl { display: block; color: var(--accent); }
+.refs { margin-top: 12px; }
+.refs ul { margin-top: 2px; padding-left: 1.1rem; }
+.refs li { padding: 1px 0; }
+.refs a { color: var(--accent); }
+.evidence { margin-top: 12px; }
+.evidence summary { cursor: pointer; color: var(--muted); font-size: 0.85rem; }
+.evidence pre {
+  margin: 8px 0 0;
+  padding: 12px 14px;
+  max-height: 24rem;
+  overflow: auto;
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font: 0.78rem/1.5 var(--mono);
+  white-space: pre;
+}
+
+/* A good result is quiet */
+.card.s-OK { padding: 10px 16px; border-left-width: 3px; }
+.card.s-OK h2 { font-size: 0.95rem; font-weight: 500; }
+.card.s-OK .details { margin-top: 4px; color: var(--muted); font-size: 0.92rem; }
+.card.s-OK .target { margin-top: 4px; font-size: 0.9rem; }
+
+.foot { margin-top: 40px; color: var(--muted); font-size: 0.85rem; }
+
+/* Print: no filters, every card visible, the raw data left out */
+@media print {
+  body { background: #fff; color: #000; font-size: 10.5pt; }
+  .page { max-width: none; padding: 0; }
+  .filters, .evidence, .empty { display: none !important; }
+  .card[hidden] { display: block !important; }
+  .card, .passport { break-inside: avoid; }
+  .card, .badge, .rec, .note { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .cards { gap: 8px; }
+  a { color: inherit; }
+}
+</style>
+</head>
+<body>
+<div class="page">
+  <header class="head" id="head"></header>
+  <section class="passport" id="passport" hidden></section>
+  <div class="filters" id="filters"></div>
+  <main class="cards" id="cards"></main>
+  <p class="empty" id="empty" role="status" hidden></p>
+  <footer class="foot" id="foot"></footer>
+</div>
+<script id="chekap-data" type="application/json">__CHEKAP_DATA__</script>
+<script>
+(function () {
+  'use strict';
+
+  var STATUSES = ['Critical', 'Error', 'Warning', 'Skipped', 'OK'];
+  var CATEGORIES = ['System', 'Network', 'Printing'];
+
+  var data;
+  try {
+    data = JSON.parse(document.getElementById('chekap-data').textContent);
+  } catch (e) {
+    document.body.textContent = 'Chekap: ' + e.message;
+    return;
+  }
+  var strings = data.strings || {};
+  var results = data.results || [];
+  var state = { status: '', category: '' };
+
+  function t(key) {
+    return Object.prototype.hasOwnProperty.call(strings, key) ? strings[key] : key;
+  }
+  // Every piece of text from the data goes through textContent, so it can never become markup.
+  function el(tag, cls, text) {
+    var node = document.createElement(tag);
+    if (cls) { node.className = cls; }
+    if (text !== undefined && text !== null) { node.textContent = text; }
+    return node;
+  }
+  function has(value) { return value !== null && value !== undefined && value !== ''; }
+  // The ISO text already holds the local time of the PC; no time zone conversion wanted.
+  function stamp(iso) { return String(iso).slice(0, 10) + ' ' + String(iso).slice(11, 16); }
+  // .NET writes seven fractional digits, JavaScript reads three.
+  function parseDate(iso) { return new Date(String(iso).replace(/(\.\d{3})\d+/, '$1')); }
+
+  document.documentElement.lang = data.language === 'uk' ? 'uk' : 'en';
+  document.title = t('Report.Title') + ' — ' + data.computer;
+
+  // Header
+  var head = document.getElementById('head');
+  head.appendChild(el('h1', '', t('Report.Title')));
+  var meta = el('p', 'meta');
+  [[t('Report.Computer'), data.computer], [t('Report.Generated'), has(data.generated) ? stamp(data.generated) : null]].forEach(function (pair) {
+    if (!has(pair[1])) { return; }
+    var item = el('span');
+    item.appendChild(el('span', '', pair[0] + ': '));
+    item.appendChild(el('strong', '', pair[1]));
+    meta.appendChild(item);
+  });
+  head.appendChild(meta);
+  if (has(data.note)) {
+    var note = el('p', 'note');
+    note.appendChild(el('span', 'lbl', t('Report.Note')));
+    note.appendChild(document.createTextNode(data.note));
+    head.appendChild(note);
+  }
+
+  // Passport
+  var sys = data.system;
+  if (sys) {
+    var rows = [];
+    var os = [sys.OsCaption, sys.OsDisplayVersion, has(sys.OsBuild) ? '(' + sys.OsBuild + ')' : null].filter(has).join(' ');
+    rows.push(['Report.Sys.Os', os]);
+    rows.push(['Report.Sys.Model', [sys.Manufacturer, sys.Model].filter(has).join(' ')]);
+    rows.push(['Report.Sys.Cpu', sys.Cpu]);
+    rows.push(['Report.Sys.Ram', sys.RamGB]);
+    if (has(sys.LastBoot) && has(data.generated)) {
+      var days = Math.floor((parseDate(data.generated) - parseDate(sys.LastBoot)) / 86400000);
+      if (days >= 0) { rows.push(['Report.Sys.Uptime', days]); }
+    }
+    rows.push(['Report.Sys.Ip', (sys.IPv4 || []).join(', ')]);
+    rows.push(['Report.Sys.Domain', sys.Domain]);
+    var list = el('dl');
+    rows.forEach(function (row) {
+      if (!has(row[1])) { return; }
+      var kv = el('div', 'kv');
+      kv.appendChild(el('dt', '', t(row[0])));
+      kv.appendChild(el('dd', '', String(row[1])));
+      list.appendChild(kv);
+    });
+    if (list.childNodes.length) {
+      var passport = document.getElementById('passport');
+      passport.appendChild(el('h2', '', t('Report.System')));
+      passport.appendChild(list);
+      passport.hidden = false;
+    }
+  }
+
+  // Sort: worst first, run order inside one status
+  var sorted = results.map(function (r, i) { return { r: r, i: i }; }).sort(function (a, b) {
+    var sa = STATUSES.indexOf(a.r.Status), sb = STATUSES.indexOf(b.r.Status);
+    return (sa - sb) || (a.i - b.i);
+  }).map(function (x) { return x.r; });
+
+  // Cards
+  function card(r) {
+    var node = el('article', 'card s-' + r.Status);
+    var top = el('div', 'card-head');
+    top.appendChild(el('span', 'badge', t('Status.' + r.Status)));
+    top.appendChild(el('h2', '', r.Title));
+    top.appendChild(el('span', 'cid', t('Category.' + r.Category) + ' · ' + r.CheckId));
+    node.appendChild(top);
+    if (has(r.Target)) {
+      var target = el('p', 'target');
+      target.appendChild(el('span', '', t('Report.Target') + ': '));
+      target.appendChild(el('span', 'val', r.Target));
+      node.appendChild(target);
+    }
+    node.appendChild(el('p', 'details', r.Details));
+    if (has(r.Recommendation)) {
+      var rec = el('div', 'rec');
+      rec.appendChild(el('span', 'lbl', t('Report.Recommendation')));
+      rec.appendChild(el('span', '', r.Recommendation));
+      node.appendChild(rec);
+    }
+    var refs = (r.References || []).filter(has);
+    if (refs.length) {
+      var box = el('div', 'refs');
+      box.appendChild(el('span', 'lbl', t('Report.References')));
+      var ul = el('ul');
+      refs.forEach(function (url) {
+        var li = el('li');
+        if (/^https?:\/\//i.test(url)) {
+          var a = el('a', '', url);
+          a.href = url;
+          a.rel = 'noopener noreferrer';
+          a.target = '_blank';
+          li.appendChild(a);
+        } else {
+          li.textContent = url;
+        }
+        ul.appendChild(li);
+      });
+      box.appendChild(ul);
+      node.appendChild(box);
+    }
+    if (r.Evidence !== null && r.Evidence !== undefined) {
+      var ev = el('details', 'evidence');
+      ev.appendChild(el('summary', '', t('Report.Evidence')));
+      ev.appendChild(el('pre', '', JSON.stringify(r.Evidence, null, 2)));
+      node.appendChild(ev);
+    }
+    return node;
+  }
+  var cardsBox = document.getElementById('cards');
+  var cards = sorted.map(function (r) {
+    var node = card(r);
+    cardsBox.appendChild(node);
+    return { node: node, status: r.Status, category: r.Category };
+  });
+
+  // Filters: the status counters and the category buttons are real buttons with aria-pressed
+  var filters = document.getElementById('filters');
+  var buttons = [];
+  function filterButton(cls, kind, value) {
+    var b = el('button', cls);
+    b.type = 'button';
+    b.addEventListener('click', function () {
+      state[kind] = (value && state[kind] === value) ? '' : value;
+      apply();
+    });
+    buttons.push({ node: b, kind: kind, value: value });
+    return b;
+  }
+
+  var counters = el('div', 'counters');
+  counters.setAttribute('role', 'group');
+  counters.setAttribute('aria-label', t('Report.Filter.Status'));
+  [''].concat(STATUSES).forEach(function (status) {
+    var count = status ? cards.filter(function (c) { return c.status === status; }).length : cards.length;
+    var b = filterButton('counter' + (status ? ' s-' + status : ''), 'status', status);
+    b.appendChild(el('span', 'num', String(count)));
+    b.appendChild(el('span', 'lab', status ? t('Status.' + status) : t('Report.Filter.All')));
+    b.disabled = count === 0;
+    counters.appendChild(b);
+  });
+  filters.appendChild(counters);
+
+  var seen = {};
+  cards.forEach(function (c) { seen[c.category] = true; });
+  var present = CATEGORIES.filter(function (c) { return seen[c]; })
+    .concat(Object.keys(seen).filter(function (c) { return CATEGORIES.indexOf(c) < 0; }));
+  if (present.length > 1) {
+    var cats = el('div', 'cats');
+    cats.setAttribute('role', 'group');
+    cats.appendChild(el('span', 'lbl', t('Report.Filter.Category')));
+    cats.setAttribute('aria-label', t('Report.Filter.Category'));
+    [''].concat(present).forEach(function (category) {
+      var b = filterButton('pill', 'category', category);
+      b.textContent = category ? t('Category.' + category) : t('Report.Filter.All');
+      cats.appendChild(b);
+    });
+    filters.appendChild(cats);
+  }
+
+  var empty = document.getElementById('empty');
+  empty.textContent = t('Report.Empty');
+  function apply() {
+    var shown = 0;
+    cards.forEach(function (c) {
+      var show = (!state.status || c.status === state.status) && (!state.category || c.category === state.category);
+      c.node.hidden = !show;
+      if (show) { shown += 1; }
+    });
+    empty.hidden = shown > 0;
+    buttons.forEach(function (b) { b.node.setAttribute('aria-pressed', String(state[b.kind] === b.value)); });
+  }
+  apply();
+
+  document.getElementById('foot').textContent = t('Report.Footer').replace('{0}', function () { return data.chekapVersion; });
+})();
+</script>
+</body>
+</html>

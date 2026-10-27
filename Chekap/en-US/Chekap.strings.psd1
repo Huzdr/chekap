@@ -28,6 +28,28 @@
 
     'Config.Saved'                         = 'Settings saved to {0}'
 
+    'Report.Title'                         = 'Chekap: PC diagnostics report'
+    'Report.Generated'                     = 'Generated'
+    'Report.Computer'                      = 'Computer'
+    'Report.Note'                          = 'Note'
+    'Report.System'                        = 'PC passport'
+    'Report.Sys.Os'                        = 'Operating system'
+    'Report.Sys.Model'                     = 'Model'
+    'Report.Sys.Cpu'                       = 'Processor'
+    'Report.Sys.Ram'                       = 'Memory (GB)'
+    'Report.Sys.Uptime'                    = 'Uptime (days)'
+    'Report.Sys.Ip'                        = 'IPv4 addresses'
+    'Report.Sys.Domain'                    = 'Domain or workgroup'
+    'Report.Filter.All'                    = 'All'
+    'Report.Filter.Status'                 = 'Status'
+    'Report.Filter.Category'               = 'Category'
+    'Report.Target'                        = 'Object'
+    'Report.Recommendation'                = 'What to do'
+    'Report.References'                    = 'Learn more'
+    'Report.Evidence'                      = 'Collected data'
+    'Report.Empty'                         = 'No findings match the selected filters.'
+    'Report.Footer'                        = 'Created by Chekap {0}. The report works offline and sends nothing anywhere.'
+
     # NET-ADAPTER-001
     'NET-ADAPTER-001.Title' = 'Network adapter'
     'NET-ADAPTER-001.Ok.Details' = 'Adapter {0} is connected at {1:N0} Mbps.'

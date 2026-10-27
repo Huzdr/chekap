@@ -28,6 +28,28 @@
 
     'Config.Saved'                         = 'Налаштування збережено: {0}'
 
+    'Report.Title'                         = 'Chekap: звіт діагностики ПК'
+    'Report.Generated'                     = 'Створено'
+    'Report.Computer'                      = 'Комп''ютер'
+    'Report.Note'                          = 'Примітка'
+    'Report.System'                        = 'Паспорт ПК'
+    'Report.Sys.Os'                        = 'Операційна система'
+    'Report.Sys.Model'                     = 'Модель'
+    'Report.Sys.Cpu'                       = 'Процесор'
+    'Report.Sys.Ram'                       = 'Пам''ять (ГБ)'
+    'Report.Sys.Uptime'                    = 'Без перезавантаження (днів)'
+    'Report.Sys.Ip'                        = 'Адреси IPv4'
+    'Report.Sys.Domain'                    = 'Домен або робоча група'
+    'Report.Filter.All'                    = 'Усі'
+    'Report.Filter.Status'                 = 'Статус'
+    'Report.Filter.Category'               = 'Категорія'
+    'Report.Target'                        = 'Об''єкт'
+    'Report.Recommendation'                = 'Що робити'
+    'Report.References'                    = 'Докладніше'
+    'Report.Evidence'                      = 'Зібрані дані'
+    'Report.Empty'                         = 'За вибраними фільтрами знахідок немає.'
+    'Report.Footer'                        = 'Створено Chekap {0}. Звіт працює без інтернету й нікуди нічого не надсилає.'
+
     # NET-ADAPTER-001
     'NET-ADAPTER-001.Title' = 'Мережевий адаптер'
     'NET-ADAPTER-001.Ok.Details' = 'Адаптер {0} підключений зі швидкістю {1:N0} Мбіт/с.'
