@@ -189,7 +189,7 @@
     'PRN-SPOOLER-001.Disabled.Details' = 'The Print Spooler service is disabled, so this PC cannot print.'
     'PRN-SPOOLER-001.Disabled.Recommendation' = 'If this PC must print, run as administrator "Set-Service -Name Spooler -StartupType Automatic; Start-Service -Name Spooler". If it does not need to print, ignore this warning.'
     'PRN-SPOOLER-001.DisabledServer.Details' = 'The Print Spooler service is disabled. On a domain controller or a server that does not print this is the recommended setting.'
-    'PRN-SPOOLER-001.DisabledServer.Recommendation' = 'Nothing to fix if this server does not print or share printers. If it is a print server, run as administrator "Set-Service -Name Spooler -StartupType Automatic; Start-Service -Name Spooler".'
+    'PRN-SPOOLER-001.DisabledServer.Recommendation' = 'Nothing to fix if this server does not print or share printers. The only trade-off: a domain controller with the spooler off no longer removes stale printer objects from Active Directory by itself (print pruning), so remove them by hand now and then if you publish printers. If it is a print server, run as administrator "Set-Service -Name Spooler -StartupType Automatic; Start-Service -Name Spooler".'
     'PRN-SPOOLER-001.NotAuto.Details' = 'The Print Spooler service is running, but its start type is not Automatic. After the next restart this PC will not print until someone starts the service.'
     'PRN-SPOOLER-001.NotAuto.Recommendation' = 'Set the start type to Automatic: run "Set-Service -Name Spooler -StartupType Automatic" as administrator, or change it in the properties of Print Spooler in Services (services.msc).'
 

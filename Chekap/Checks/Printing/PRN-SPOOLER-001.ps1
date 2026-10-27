@@ -5,6 +5,7 @@
     MinBuild      = 0
     References    = @(
         'https://learn.microsoft.com/powershell/module/microsoft.powershell.management/get-service'
+        'https://learn.microsoft.com/defender-for-identity/security-posture-assessments/identity-infrastructure'
         'https://learn.microsoft.com/windows-server/security/windows-services/security-guidelines-for-disabling-system-services-in-windows-server-2016'
     )
     Settings      = @{}
