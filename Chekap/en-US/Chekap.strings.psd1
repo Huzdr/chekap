@@ -118,7 +118,7 @@
     'PRN-DEFAULT-001.NoPrintModule.Details' = 'The PrintManagement PowerShell module is not available on this PC, so the printers cannot be read.'
     'PRN-DEFAULT-001.NoPrintModule.Recommendation' = 'The Windows system files may be damaged. Run as administrator "DISM /Online /Cleanup-Image /RestoreHealth", then "sfc /scannow", and run the check again.'
     'PRN-DEFAULT-001.SpoolerStopped.Details' = 'The Print Spooler service is not running, so the printers cannot be read.'
-    'PRN-DEFAULT-001.SpoolerStopped.Recommendation' = 'Start the Print Spooler service (see check PRN-SPOOLER-001) and run this check again. If this PC does not print on purpose, ignore this.'
+    'PRN-DEFAULT-001.SpoolerStopped.Recommendation' = 'Start the Print Spooler service (see check PRN-SPOOLER-001) and run this check again. On a server that does not print, such as a domain controller, a stopped Print Spooler is expected and this can be ignored; the same holds for a PC that does not print on purpose.'
 
     # PRN-DRIVER-001
     'PRN-DRIVER-001.Title' = 'Printer drivers'
@@ -128,14 +128,14 @@
     'PRN-DRIVER-001.NoPrintModule.Details' = 'The PrintManagement PowerShell module is not available on this PC, so the printer drivers cannot be read.'
     'PRN-DRIVER-001.NoPrintModule.Recommendation' = 'The Windows system files may be damaged. Run as administrator "DISM /Online /Cleanup-Image /RestoreHealth", then "sfc /scannow", and run the check again.'
     'PRN-DRIVER-001.SpoolerStopped.Details' = 'The Print Spooler service is not running, so the printer drivers cannot be read.'
-    'PRN-DRIVER-001.SpoolerStopped.Recommendation' = 'Start the Print Spooler service (see check PRN-SPOOLER-001) and run this check again. If this PC does not print on purpose, ignore this.'
+    'PRN-DRIVER-001.SpoolerStopped.Recommendation' = 'Start the Print Spooler service (see check PRN-SPOOLER-001) and run this check again. On a server that does not print, such as a domain controller, a stopped Print Spooler is expected and this can be ignored; the same holds for a PC that does not print on purpose.'
 
     # PRN-PORT-001
     'PRN-PORT-001.Title' = 'Network printers'
     'PRN-PORT-001.Ok.Details' = 'The printer answers: {0} accepts connections on port {1}.'
     'PRN-PORT-001.NoNetworkPrinters.Details' = 'No network printers are installed on this PC, so there are no printer ports to test.'
-    'PRN-PORT-001.Unreachable.Details' = 'Cannot connect to {0}, port {1}. The printer, or the print server it is connected through, is switched off, unplugged from the network or has a different address.'
-    'PRN-PORT-001.Unreachable.Recommendation' = 'Check that the printer is switched on and connected to the network, and ping its address. If the printer got a new address from DHCP, change the port: Printer properties > Ports > Configure Port, and enter the new address. Reserve the address of the printer in DHCP, or set it on the printer, so that it does not change again. For a print server, check that the server is on and that a firewall does not block file and printer sharing (port 445).'
+    'PRN-PORT-001.Unreachable.Details' = 'Cannot connect to {0}, port {1}. The printer, or the print server it is connected through, may be switched off, unplugged from the network or have a different address; a firewall or a closed port {1} gives the same result.'
+    'PRN-PORT-001.Unreachable.Recommendation' = 'Check that the printer is switched on and connected to the network, and ping its address. If the ping works but the port does not answer, check in the network settings of the printer that the printing port you need is enabled (9100 for raw, 515 for LPR, 631 for IPP) and that a firewall does not block it. If the printer got a new address from DHCP, change the port: Printer properties > Ports > Configure Port, and enter the new address. Reserve the address of the printer in DHCP, or set it on the printer, so that it does not change again. For a print server, check that the server is on and that a firewall does not block file and printer sharing (port 445).'
     'PRN-PORT-001.Offline.Details' = 'The printer answers on {0}, port {1}, but Windows shows it as offline, so print jobs stay in the queue.'
     'PRN-PORT-001.Offline.Recommendation' = 'Open the print queue and, in the Printer menu, clear "Use Printer Offline". If the status comes back, turn off SNMP status for the port (Printer properties > Ports > Configure Port > clear "SNMP Status Enabled") and check that the printer is not asleep or in an error state.'
     'PRN-PORT-001.Wsd.Details' = 'The printer is connected through a WSD port. A WSD port has no fixed address and often goes offline after the printer or the PC restarts or the network changes.'
@@ -145,7 +145,7 @@
     'PRN-PORT-001.NoPrintModule.Details' = 'The PrintManagement PowerShell module is not available on this PC, so the printers cannot be read.'
     'PRN-PORT-001.NoPrintModule.Recommendation' = 'The Windows system files may be damaged. Run as administrator "DISM /Online /Cleanup-Image /RestoreHealth", then "sfc /scannow", and run the check again.'
     'PRN-PORT-001.SpoolerStopped.Details' = 'The Print Spooler service is not running, so the printers cannot be read.'
-    'PRN-PORT-001.SpoolerStopped.Recommendation' = 'Start the Print Spooler service (see check PRN-SPOOLER-001) and run this check again. If this PC does not print on purpose, ignore this.'
+    'PRN-PORT-001.SpoolerStopped.Recommendation' = 'Start the Print Spooler service (see check PRN-SPOOLER-001) and run this check again. On a server that does not print, such as a domain controller, a stopped Print Spooler is expected and this can be ignored; the same holds for a PC that does not print on purpose.'
 
     # PRN-QUEUE-001
     'PRN-QUEUE-001.Title' = 'Print queues'
@@ -155,7 +155,7 @@
     'PRN-QUEUE-001.NoPrintModule.Details' = 'The PrintManagement PowerShell module is not available on this PC, so the print queues cannot be read.'
     'PRN-QUEUE-001.NoPrintModule.Recommendation' = 'The Windows system files may be damaged. Run as administrator "DISM /Online /Cleanup-Image /RestoreHealth", then "sfc /scannow", and run the check again.'
     'PRN-QUEUE-001.SpoolerStopped.Details' = 'The Print Spooler service is not running, so the print queues cannot be read.'
-    'PRN-QUEUE-001.SpoolerStopped.Recommendation' = 'Start the Print Spooler service (see check PRN-SPOOLER-001) and run this check again. If this PC does not print on purpose, ignore this.'
+    'PRN-QUEUE-001.SpoolerStopped.Recommendation' = 'Start the Print Spooler service (see check PRN-SPOOLER-001) and run this check again. On a server that does not print, such as a domain controller, a stopped Print Spooler is expected and this can be ignored; the same holds for a PC that does not print on purpose.'
 
     # PRN-RPC-001
     'PRN-RPC-001.Title' = 'Shared printers and RPC protection'
@@ -169,7 +169,7 @@
     'PRN-RPC-001.NoPrintModule.Details' = 'The PrintManagement PowerShell module is not available on this PC, so the printers cannot be read.'
     'PRN-RPC-001.NoPrintModule.Recommendation' = 'The Windows system files may be damaged. Run as administrator "DISM /Online /Cleanup-Image /RestoreHealth", then "sfc /scannow", and run the check again.'
     'PRN-RPC-001.SpoolerStopped.Details' = 'The Print Spooler service is not running, so the printers cannot be read.'
-    'PRN-RPC-001.SpoolerStopped.Recommendation' = 'Start the Print Spooler service (see check PRN-SPOOLER-001) and run this check again. If this PC does not print on purpose, ignore this.'
+    'PRN-RPC-001.SpoolerStopped.Recommendation' = 'Start the Print Spooler service (see check PRN-SPOOLER-001) and run this check again. On a server that does not print, such as a domain controller, a stopped Print Spooler is expected and this can be ignored; the same holds for a PC that does not print on purpose.'
 
     # PRN-SCAN-001
     'PRN-SCAN-001.Title' = 'Imaging devices (scanner or camera)'
@@ -192,6 +192,8 @@
     'PRN-SPOOLER-001.DisabledServer.Recommendation' = 'Nothing to fix if this server does not print or share printers. The only trade-off: a domain controller with the spooler off no longer removes stale printer objects from Active Directory by itself (print pruning), so remove them by hand now and then if you publish printers. If it is a print server, run as administrator "Set-Service -Name Spooler -StartupType Automatic; Start-Service -Name Spooler".'
     'PRN-SPOOLER-001.NotAuto.Details' = 'The Print Spooler service is running, but its start type is not Automatic. After the next restart this PC will not print until someone starts the service.'
     'PRN-SPOOLER-001.NotAuto.Recommendation' = 'Set the start type to Automatic: run "Set-Service -Name Spooler -StartupType Automatic" as administrator, or change it in the properties of Print Spooler in Services (services.msc).'
+    'PRN-SPOOLER-001.NoSpooler.Details' = 'The Print Spooler service (Spooler) does not exist on this PC, so it cannot be checked.'
+    'PRN-SPOOLER-001.NoSpooler.Recommendation' = 'Without this service nothing can be printed on this PC. The Windows system files may be damaged: run as administrator "DISM /Online /Cleanup-Image /RestoreHealth", then "sfc /scannow", and run the check again. If this PC is not meant to print, there is nothing to fix.'
 
     # SYS-APPCRASH-001
     'SYS-APPCRASH-001.Title' = 'Application crashes'

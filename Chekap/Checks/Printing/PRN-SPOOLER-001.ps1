@@ -10,8 +10,8 @@
     )
     Settings      = @{}
     Collect       = {
-        # No SilentlyContinue: Windows without a Spooler service is broken, and that should show as an Error, not as a verdict.
-        $service = Get-Service -Name Spooler
+        # A PC without the Spooler service makes Get-Service write an error; that is the answer "no service" (empty Status), not an Error.
+        $service = Get-Service -Name Spooler -ErrorAction SilentlyContinue
         @{
             Status      = [string]$service.Status
             StartType   = [string]$service.StartType
@@ -20,7 +20,10 @@
     }
     Evaluate      = {
         param($Data)
-        if ($Data.StartType -eq 'Disabled') {
+        if (-not $Data.Status) {
+            @{ Status = 'Skipped'; Message = 'NoSpooler' }
+        }
+        elseif ($Data.StartType -eq 'Disabled') {
             # Microsoft advises switching the spooler off on domain controllers (ProductType 2) and servers (3) that do not print.
             if ($Data.ProductType -in 2, 3) {
                 @{ Status = 'OK'; Message = 'DisabledServer' }

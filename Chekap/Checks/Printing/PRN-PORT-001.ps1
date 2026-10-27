@@ -34,14 +34,14 @@
                     # A real TCP/IP port wins over the name of the port: a port called TS_Office is still a network port.
                     $entry.Kind = 'Network'
                     $entry.Host = [string]$record.PrinterHostAddress
-                    # PortNumber 0 means none was set; raw printing uses 9100.
-                    $entry.Port = if ([int]$record.PortNumber -gt 0) { [int]$record.PortNumber } else { 9100 }
+                    # LPR mode (Protocol 2) listens on 515 whatever PortNumber says. For raw printing, PortNumber 0 means none was set: 9100.
+                    $entry.Port = if ([int]$record.Protocol -eq 2) { 515 } elseif ([int]$record.PortNumber -gt 0) { [int]$record.PortNumber } else { 9100 }
                 }
                 elseif ([uri]::TryCreate($entry.PortName, [System.UriKind]::Absolute, [ref]$uri) -and $uri.Scheme -in 'http', 'https', 'ipp', 'ipps') {
-                    # The port written in the URL, else the scheme's own; the ipp scheme has none, and IPP uses 631.
+                    # The port written in the URL, else the scheme's own (http 80, https 443). [uri] knows no port for ipp and ipps (-1): ipp is 631, ipps (IPP over TLS) is 443.
                     $entry.Kind = 'Network'
                     $entry.Host = $uri.DnsSafeHost
-                    $entry.Port = if ($uri.Port -gt 0) { $uri.Port } else { 631 }
+                    $entry.Port = if ($uri.Port -gt 0) { $uri.Port } elseif ($uri.Scheme -eq 'ipps') { 443 } else { 631 }
                 }
                 elseif ($entry.PortName -like 'WSD*') {
                     $entry.Kind = 'Wsd'

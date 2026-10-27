@@ -34,6 +34,8 @@
         @{ Id = 'PRN-SPOOLER-001'; Name = 'a disabled spooler on a member server is DisabledServer'; Data = (& $spooler 'Stopped' 'Disabled' 3); Expect = @(@{ Status = 'OK'; Message = 'DisabledServer' }) }
         @{ Id = 'PRN-SPOOLER-001'; Name = 'a disabled spooler with an unknown product type is Disabled'; Data = (& $spooler 'Stopped' 'Disabled' 0); Expect = @(@{ Status = 'Warning'; Message = 'Disabled' }) }
         @{ Id = 'PRN-SPOOLER-001'; Name = 'a disabled spooler that still runs is judged by its start type'; Data = (& $spooler 'Running' 'Disabled' 1); Expect = @(@{ Status = 'Warning'; Message = 'Disabled' }) }
+        @{ Id = 'PRN-SPOOLER-001'; Name = 'a Spooler service that is not on the PC is Skipped NoSpooler, not Stopped'; Data = (& $spooler '' '' 1); Expect = @(@{ Status = 'Skipped'; Message = 'NoSpooler' }) }
+        @{ Id = 'PRN-SPOOLER-001'; Name = 'a missing Spooler service is NoSpooler on a server too'; Data = (& $spooler '' '' 2); Expect = @(@{ Status = 'Skipped'; Message = 'NoSpooler' }) }
 
         @{ Id = 'PRN-QUEUE-001'; Name = 'no jobs is OK with a zero count'; Data = (& $ready @{ Jobs = @(); Now = $now }); Expect = @(@{ Status = 'OK'; Message = 'Ok'; Args = @(0) }) }
         @{ Id = 'PRN-QUEUE-001'; Name = 'a fresh job is OK with the total'; Data = (& $ready @{ Jobs = @((& $job 'PRN-2F-HP' 1 'Printing' 5)); Now = $now }); Expect = @(@{ Status = 'OK'; Message = 'Ok'; Args = @(1) }) }
@@ -111,6 +113,12 @@
 
     $script:dependentCases = @($dependent | ForEach-Object { @{ Id = $_ } })
 
+    # The three texts that were wrong or too sure of themselves, in every spooler-dependent check.
+    $script:spoolerStoppedCases = foreach ($id in $dependent) {
+        @{ Id = $id; Language = 'en-US'; Pattern = 'domain controller' }
+        @{ Id = $id; Language = 'uk-UA'; Pattern = 'контролер\S* домену' }
+    }
+
     $script:virtualPorts = @(
         @{ PortName = 'PORTPROMPT:'; Expected = $true }
         @{ PortName = 'nul:'; Expected = $true }
@@ -148,6 +156,7 @@ BeforeAll {
     # Real cmdlets return enums; the checks must turn them into strings.
     if (-not ('ChekapTestPrinterType' -as [type])) { Add-Type -TypeDefinition 'public enum ChekapTestPrinterType { Local, Connection }' }
     if (-not ('ChekapTestPrinterStatus' -as [type])) { Add-Type -TypeDefinition 'public enum ChekapTestPrinterStatus { Normal, Offline }' }
+    if (-not ('ChekapTestPortProtocol' -as [type])) { Add-Type -TypeDefinition 'public enum ChekapTestPortProtocol { RAW = 1, LPR = 2 }' }
     if (-not ('ChekapTestJobStatus' -as [type])) { Add-Type -TypeDefinition '[System.Flags] public enum ChekapTestJobStatus { Normal = 0, Error = 1, Printing = 2 }' }
     # A printer as Get-Printer returns it.
     $script:newPrinter = {
@@ -224,6 +233,41 @@ Describe 'Printing checks: Evaluate' {
         foreach ($message in 'NoScanner', 'Ok', 'DeviceError') {
             $script:tables[$Language]["PRN-SCAN-001.$message.Details"] | Should -Match $Pattern
         }
+    }
+
+    # Facts checked read-only against this PC (Get-Service DisplayName; printui.dll.mui, TCPMonUI.dll.mui and the Settings app resources of uk-UA).
+    It 'uk-UA texts name the Windows UI the way Windows does' -ForEach @(
+        @{ Key = 'PRN-SPOOLER-001.Ok.Details'; Text = 'Print Spooler (Spooler)' }
+        @{ Key = 'PRN-SPOOLER-001.Stopped.Recommendation'; Text = 'Print Spooler' }
+        @{ Key = 'PRN-SCAN-001.ServiceStopped.Recommendation'; Text = 'Служба завантаження зображень Windows' }
+        @{ Key = 'PRN-SCAN-001.ServiceStopped.Recommendation'; Text = 'Визначення устаткування оболонки' }
+        @{ Key = 'PRN-PORT-001.Unreachable.Recommendation'; Text = 'Настроїти порт' }
+        @{ Key = 'PRN-PORT-001.Offline.Recommendation'; Text = 'Настроїти порт' }
+        @{ Key = 'PRN-PORT-001.Offline.Recommendation'; Text = 'Використовувати цей принтер в автономному режимі' }
+        @{ Key = 'PRN-PORT-001.Offline.Recommendation'; Text = 'Дозволено перевірку стану через SNMP' }
+        @{ Key = 'PRN-DEFAULT-001.Managed.Recommendation'; Text = 'Дозволити ОС Windows керувати моїм принтером за замовчуванням' }
+        @{ Key = 'PRN-DEFAULT-001.NoDefault.Recommendation'; Text = 'Дозволити ОС Windows керувати моїм принтером за замовчуванням' }
+    ) {
+        $script:tables['uk-UA'][$Key] | Should -Match ([regex]::Escape($Text))
+    }
+
+    It 'uk-UA Printing texts leave out names and wording that Windows does not use' {
+        $banned = '(?i)диспетчер\w* друку', 'стандартним принтером', 'Налаштувати порт', 'можуть не знаходитися', 'помилки безпеки', 'спільного на робочій'
+        $texts = @($script:tables['uk-UA'].Keys | Where-Object { $_ -like 'PRN-*' } | ForEach-Object { '{0}: {1}' -f $_, $script:tables['uk-UA'][$_] })
+        $texts.Count | Should -BeGreaterThan 50
+        $hits = foreach ($text in $texts) { foreach ($word in $banned) { if ($text -match $word) { '{0} <- {1}' -f $word, $text.Substring(0, $text.IndexOf(':')) } } }
+        $hits | Should -BeNullOrEmpty
+    }
+
+    It 'PRN-PORT-001 does not state the cause of an unreachable printer as a fact in <Language>' -ForEach @(@{ Language = 'en-US'; Pattern = 'may be' }, @{ Language = 'uk-UA'; Pattern = 'може бути' }) {
+        $script:tables[$Language]['PRN-PORT-001.Unreachable.Details'] | Should -Match $Pattern
+        $script:tables[$Language]['PRN-PORT-001.Unreachable.Details'] | Should -Match '(?i)firewall|брандмауер'
+        $script:tables[$Language]['PRN-PORT-001.Unreachable.Recommendation'] | Should -Match '(?i)firewall|брандмауер'
+        $script:tables[$Language]['PRN-PORT-001.Unreachable.Recommendation'] | Should -Match '9100'
+    }
+
+    It '<Id>.SpoolerStopped.Recommendation says a stopped spooler is expected on a server that does not print in <Language>' -ForEach $script:spoolerStoppedCases {
+        $script:tables[$Language]["$Id.SpoolerStopped.Recommendation"] | Should -Match $Pattern
     }
 
     It 'PRN-SCAN-001 never mentions a scanner without a camera in <Language>' -ForEach @(@{ Language = 'en-US'; Scanner = 'scanner'; Camera = 'camera' }, @{ Language = 'uk-UA'; Scanner = 'сканер'; Camera = 'камер' }) {
@@ -337,10 +381,17 @@ Describe 'Printing checks: Collect' {
             Should -Invoke Get-Service -ModuleName Chekap -Times 1 -Exactly -ParameterFilter { $Name -eq 'Spooler' }
         }
 
-        It 'does not turn a missing Spooler service into a verdict' {
-            Mock Get-Service { throw 'Cannot find any service with service name Spooler.' } -ModuleName Chekap
+        It 'a missing Spooler service is Skipped NoSpooler, not an Error' {
+            # The real cmdlet writes an error for an unknown service; the mock fails unless the caller silenced it.
+            Mock Get-Service { & $script:failUnlessSilenced $PesterBoundParameters } -ModuleName Chekap
             $check = $script:byId['PRN-SPOOLER-001']
-            { & $check.Collect $check.Settings } | Should -Throw
+            $data = & $check.Collect $check.Settings
+            $data.Status | Should -BeNullOrEmpty
+            $data.StartType | Should -BeNullOrEmpty
+            $verdicts = @(& $check.Evaluate $data $check.Settings)
+            $verdicts.Count | Should -Be 1
+            $verdicts[0].Status | Should -Be 'Skipped'
+            $verdicts[0].Message | Should -Be 'NoSpooler'
         }
     }
 
@@ -478,6 +529,39 @@ Describe 'Printing checks: Collect' {
             $data = & $check.Collect $check.Settings
             $data.Printers[0].Port | Should -Be 8631
             $data.Printers[1].Port | Should -Be 443
+        }
+
+        It 'maps an ipps URL to 443 when no port is written, and keeps a written port' {
+            Mock Get-Printer {
+                & $script:newPrinter 'PRN-2F-HP' 'Local' 'ipps://192.0.2.50/ipp/print'
+                & $script:newPrinter 'PRN-3F-HP' 'Local' 'ipps://192.0.2.51:631/ipp/print'
+                & $script:newPrinter 'PRN-4F-HP' 'Local' 'ipp://192.0.2.52/ipp/print'
+            } -ModuleName Chekap
+            $check = $script:byId['PRN-PORT-001']
+            $data = & $check.Collect $check.Settings
+            $data.Printers[0].Kind | Should -Be 'Network'
+            $data.Printers[0].Host | Should -Be '192.0.2.50'
+            $data.Printers[0].Port | Should -Be 443
+            $data.Printers[1].Port | Should -Be 631
+            $data.Printers[2].Port | Should -Be 631
+            Should -Invoke Test-ChekapTcpPort -ModuleName Chekap -Times 1 -Exactly -ParameterFilter { $ComputerName -eq '192.0.2.50' -and $Port -eq 443 }
+        }
+
+        It 'probes port 515 for a Standard TCP/IP port in LPR mode, and the port number for raw printing' {
+            Mock Get-Printer {
+                & $script:newPrinter 'PRN-2F-HP' 'Local' 'IP_192.0.2.50'
+                & $script:newPrinter 'PRN-3F-HP' 'Local' 'IP_192.0.2.51'
+            } -ModuleName Chekap
+            Mock Get-PrinterPort {
+                [pscustomobject]@{ Name = 'IP_192.0.2.50'; PrinterHostAddress = '192.0.2.50'; PortNumber = [uint32]9100; Protocol = [ChekapTestPortProtocol]'LPR' }
+                [pscustomobject]@{ Name = 'IP_192.0.2.51'; PrinterHostAddress = '192.0.2.51'; PortNumber = [uint32]9101; Protocol = [ChekapTestPortProtocol]'RAW' }
+            } -ModuleName Chekap
+            $check = $script:byId['PRN-PORT-001']
+            $data = & $check.Collect $check.Settings
+            $data.Printers[0].Port | Should -Be 515
+            $data.Printers[1].Port | Should -Be 9101
+            Should -Invoke Test-ChekapTcpPort -ModuleName Chekap -Times 1 -Exactly -ParameterFilter { $ComputerName -eq '192.0.2.50' -and $Port -eq 515 }
+            Should -Invoke Test-ChekapTcpPort -ModuleName Chekap -Times 1 -Exactly -ParameterFilter { $ComputerName -eq '192.0.2.51' -and $Port -eq 9101 }
         }
 
         It 'does not test a WSD port, a virtual port or a USB port' {
