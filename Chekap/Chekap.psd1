@@ -8,7 +8,7 @@
     PowerShellVersion     = '5.1'
     CompatiblePSEditions  = @('Desktop', 'Core')
     FormatsToProcess      = @('Chekap.format.ps1xml')
-    FunctionsToExport     = @('Get-ChekapCheck', 'Get-ChekapConfig', 'Set-ChekapConfig', 'Test-ChekapHealth', 'Test-ChekapNetwork')
+    FunctionsToExport     = @('Get-ChekapCheck', 'Get-ChekapConfig', 'Set-ChekapConfig', 'Test-ChekapHealth', 'Test-ChekapNetwork', 'Test-ChekapPrinting')
     CmdletsToExport       = @()
     VariablesToExport     = @()
     AliasesToExport       = @()
