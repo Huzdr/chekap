@@ -132,3 +132,51 @@ Describe 'Check file <Name>' -ForEach $script:checkCases {
         @($script:commandNames | Where-Object { $_ -notin $script:allowedCommands }) | Should -BeNullOrEmpty
     }
 }
+
+Describe 'Start-Chekap.cmd launcher' {
+    BeforeAll {
+        $script:cmdPath = Join-Path $script:root 'Start-Chekap.cmd'
+        $script:cmdBytes = [System.IO.File]::ReadAllBytes($script:cmdPath)
+        $script:cmdText = [System.Text.Encoding]::ASCII.GetString($script:cmdBytes)
+    }
+
+    It 'is plain ASCII' {
+        @($script:cmdBytes | Where-Object { $_ -ge 0x80 }) | Should -BeNullOrEmpty
+    }
+
+    It 'has no BOM: it would break @echo off' {
+        $script:cmdBytes[0] | Should -Be ([byte][char]'@')
+        $script:cmdText | Should -Match '^@echo off\r\n'
+    }
+
+    It 'uses CRLF line endings only' {
+        [regex]::Matches($script:cmdText, '(?<!\r)\n').Count | Should -Be 0
+        [regex]::Matches($script:cmdText, '\r(?!\n)').Count | Should -Be 0
+    }
+
+    It 'tests for administrator rights with fltmc, which does not depend on the Server service' {
+        $script:cmdText | Should -Match '(?m)^fltmc >nul 2>&1\r$'
+        $script:cmdText | Should -Not -Match 'net session'
+    }
+
+    It 'asks for elevation once: it passes the elevated marker and skips the request when it has it' {
+        $script:cmdText | Should -Match '(?m)^if "%~1"=="elevated" goto menu\r$'
+        $script:cmdText | Should -Match "-ArgumentList 'elevated' -Verb RunAs"
+        # The marker test comes first, otherwise a copy that already has the marker could ask again.
+        $script:cmdText.IndexOf('if "%~1"=="elevated"') | Should -BeLessThan $script:cmdText.IndexOf('-Verb RunAs')
+        $script:cmdText | Should -Match '(?m)^:menu\r$'
+    }
+
+    It 'imports the module that sits next to it and starts the menu' {
+        $script:cmdText | Should -Match ([regex]::Escape("-Command ""Import-Module '%~dp0Chekap\Chekap.psd1'; Start-Chekap"""))
+        Test-Path -LiteralPath (Join-Path $script:root 'Chekap/Chekap.psd1') | Should -BeTrue
+    }
+
+    It 'is left alone by tools/Add-Bom.ps1' {
+        $copy = Join-Path $TestDrive 'launcher'
+        $null = New-Item -ItemType Directory -Path $copy
+        Copy-Item -LiteralPath $script:cmdPath -Destination $copy
+        & (Join-Path $script:root 'tools/Add-Bom.ps1') -Path $copy
+        [System.IO.File]::ReadAllBytes((Join-Path $copy 'Start-Chekap.cmd')) | Should -Be $script:cmdBytes
+    }
+}
