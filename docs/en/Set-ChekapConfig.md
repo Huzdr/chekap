@@ -30,7 +30,7 @@ Supports -WhatIf and -Confirm. With -Verbose the command prints the path of the 
 Set-ChekapConfig -Language uk
 ```
 
-Saves Ukrainian. Every Chekap command and the menu now start in Ukrainian, unless a command is given its own Language.
+Saves Ukrainian. From now on every Chekap command and the menu work in Ukrainian, unless a command is given its own Language.
 
 ### Example 2: See what would be written
 ```powershell

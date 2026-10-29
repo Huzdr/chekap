@@ -19,9 +19,9 @@ Test-ChekapNetwork [[-Language] <String>] [[-CheckId] <String[]>] [<CommonParame
 ## DESCRIPTION
 Runs the Network checks and returns one Chekap.CheckResult object for each finding. The checks look at: the network adapter and its speed, the IP address from DHCP (an automatic address 169.254.x.x means that no DHCP server answered), the DNS servers, name resolution, the default gateway, internet access, the proxy settings, the network profile (Public, Private or Domain) and time synchronization (a clock that is far off breaks Kerberos and TLS).
 
-The checks do not change anything and need no administrator rights. They do talk to the network: a ping to the default gateway, a DNS query to each of your DNS servers, a connection to the proxy server if one is set, one time query to your time source, a name lookup of www.microsoft.com (and of the domain name on a domain PC), and one connection to port 443 of www.microsoft.com for the internet check. Every probe has a short time limit, so a server that does not answer cannot make the check hang.
+The checks do not change anything and need no administrator rights. They do talk to the network: a ping to the default gateway, a DNS query to each of your DNS servers, a connection to the proxy server if one is set, one time query to your time source, a name lookup of www.microsoft.com (and of the domain name on a domain PC), and one connection to port 443 of www.microsoft.com for the internet check. The ping, the DNS queries and the TCP connections have a short time limit, so a server that does not answer cannot make the check hang. The time query is made by the standard w32tm tool, which has its own time limit.
 
-Every result has a Status: OK, Warning, Critical, Error (the check itself could not finish) or Skipped (the check does not apply). The Status values are always in English, so scripts work in any language. Title, Details and Recommendation are in the language of the report: the Language parameter, else the language saved with Set-ChekapConfig, else the language of the Windows interface.
+Every result has a Status: OK, Warning, Critical, Error (the check itself could not finish) or Skipped (the check does not apply). The Status values are always in English, so scripts work in any language. Title, Details and Recommendation are in the language of the texts: the one from the Language parameter if you give it, otherwise the one saved with Set-ChekapConfig, otherwise the language of the Windows interface.
 
 ## EXAMPLES
 
@@ -75,7 +75,7 @@ Required: False
 Position: 2
 Default value: None
 Accept pipeline input: False
-Accept wildcard characters: False
+Accept wildcard characters: True
 ```
 
 ### CommonParameters

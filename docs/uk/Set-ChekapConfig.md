@@ -30,7 +30,7 @@ Set-ChekapConfig [-Language] <String> [-WhatIf] [-Confirm] [<CommonParameters>]
 Set-ChekapConfig -Language uk
 ```
 
-Зберігає українську. Усі команди Chekap і меню відтепер стартують українською, якщо команді не вказати власний Language.
+Зберігає українську. Відтепер усі команди Chekap і меню працюють українською, якщо команді не вказати власний Language.
 
 ### Приклад 2: Подивитися, що буде записано
 ```powershell

@@ -51,7 +51,7 @@
     'Report.Footer'                        = 'Created by Chekap {0}. The report works offline and sends nothing anywhere.'
 
     'Tui.Header'                           = 'Chekap {0}: PC diagnostics. Computer: {1}'
-    'Tui.NotAdmin'                         = 'Without administrator rights some checks will be skipped.'
+    'Tui.NotAdmin'                         = 'Without administrator rights some results may be incomplete.'
     'Tui.Menu.1'                           = '1. All checks'
     'Tui.Menu.2'                           = '2. System: PC health'
     'Tui.Menu.3'                           = '3. Network'

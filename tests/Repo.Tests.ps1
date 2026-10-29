@@ -170,6 +170,24 @@ Describe 'Command help' {
             ($documented -join ',') | Should -Be ($real -join ',')
         }
 
+        It 'docs/<Lang> Accept wildcard characters equals SupportsWildcards of each parameter' -ForEach $script:helpLanguages {
+            $text = & $script:readPage $Lang
+            $mismatch = foreach ($parameter in (Get-Command -Name $Command).Parameters.Values) {
+                if ($parameter.Name -in [System.Management.Automation.PSCmdlet]::CommonParameters) { continue }
+                $block = [regex]::Match($text, "(?ms)^### -$($parameter.Name)\s*\r?\n((?:(?!^### ).)*)").Groups[1].Value
+                $documented = [regex]::Match($block, '(?m)^Accept wildcard characters: (\w+)').Groups[1].Value
+                $real = [bool]($parameter.Attributes | Where-Object { $_ -is [System.Management.Automation.SupportsWildcardsAttribute] })
+                if ($documented -ne [string]$real) { "-$($parameter.Name): page says '$documented', the code says $real" }
+            }
+            $mismatch | Should -BeNullOrEmpty
+        }
+
+        It 'docs/uk has as many examples as docs/en' {
+            $examples = { param($lang) [regex]::Matches([regex]::Match((& $script:readPage $lang), '(?ms)^## EXAMPLES\r?\n(.*?)^## PARAMETERS').Groups[1].Value, '(?m)^### ').Count }
+            (& $examples 'en') | Should -BeGreaterThan 0
+            (& $examples 'uk') | Should -Be (& $examples 'en')
+        }
+
         It 'the function body starts with the ExternalHelp line' {
             $source = Get-Content -LiteralPath (Join-Path $script:root "Chekap/Public/$Command.ps1") -Raw -Encoding UTF8
             $source | Should -Match '^function [\w-]+ \{\r?\n[ \t]*# \.ExternalHelp Chekap-help\.xml\r?\n'

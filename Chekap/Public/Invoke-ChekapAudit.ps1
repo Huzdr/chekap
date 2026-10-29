@@ -6,6 +6,7 @@
         [ValidateSet('System', 'Network', 'Printing')]
         [string[]]$Category,
 
+        [SupportsWildcards()]
         [string[]]$CheckId,
 
         [ValidateSet('uk', 'en')]

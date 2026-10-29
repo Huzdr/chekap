@@ -24,9 +24,9 @@ With -OutputPath the command writes two files to that folder: Chekap-\<ComputerN
 
 The HTML report is one file with no external resources: it works without internet, opens in any browser, can be printed or sent to a colleague, and sends nothing anywhere. It starts with the PC passport (system, model, processor, memory, uptime, IPv4 addresses, domain or workgroup), then lists the findings from the worst to the best with filters by status and category, and shows the data each finding is based on. The JSON file holds the same data for scripts. The report contains the name of the PC, its IP addresses and printer names, so look through it before you send it outside your organization.
 
-The checks only read data. None of them changes the PC, and none of the current checks needs administrator rights. A check that does need them is reported as Skipped when PowerShell is not elevated. Every result has a Status: OK, Warning, Critical, Error (the check itself could not finish) or Skipped (the check cannot run or does not apply, for example there is no battery). The Status values are always in English, so scripts work in any language.
+The checks only read data. None of them changes the PC, and none of the current checks needs administrator rights. A check that does need them is reported as Skipped when PowerShell is not elevated. Every result has a Status: OK, Warning, Critical, Error (the check itself could not finish) or Skipped (the check cannot run or does not apply, for example there is no battery). The Status values are always in English, so scripts work in any language; the HTML report shows them as words in the language of the report.
 
-The findings and the report are in one language: the Language parameter, else the language saved with Set-ChekapConfig, else the language of the Windows interface.
+The findings and the report are in one language: the one from the Language parameter if you give it, otherwise the one saved with Set-ChekapConfig, otherwise the language of the Windows interface.
 
 ## EXAMPLES
 
@@ -87,7 +87,7 @@ Required: False
 Position: 2
 Default value: None
 Accept pipeline input: False
-Accept wildcard characters: False
+Accept wildcard characters: True
 ```
 
 ### -Language

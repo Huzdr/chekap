@@ -19,9 +19,9 @@ Test-ChekapHealth [[-Language] <String>] [[-CheckId] <String[]>] [<CommonParamet
 ## DESCRIPTION
 Runs the System checks and returns one Chekap.CheckResult object for each finding. A check can report more than one finding, for example one for each battery. The checks look at: uptime, a restart that is waiting, free space on the system drive, CPU and memory load, memory and the page file, blue screen crashes, unexpected shutdowns, application crashes, programs in startup and battery wear.
 
-The checks only read data. They do not change settings and need no administrator rights, but a few see less without them: the folder of crash dumps can be read only by administrators. The battery check asks powercfg for a report in a temporary file in the %TEMP% folder and deletes the file at once.
+The checks only read data. They do not change settings and need no administrator rights, but some checks get less data without them: the folder of crash dumps can be read only by administrators. The battery check asks powercfg for a report in a temporary file in the %TEMP% folder and deletes the file at once.
 
-Every result has a Status: OK, Warning, Critical, Error (the check itself could not finish) or Skipped (the check does not apply to this PC, for example there is no battery). The Status values are always in English, so scripts work in any language. Title, Details and Recommendation are in the language of the report: the Language parameter, else the language saved with Set-ChekapConfig, else the language of the Windows interface.
+Every result has a Status: OK, Warning, Critical, Error (the check itself could not finish) or Skipped (the check does not apply to this PC, for example there is no battery). The Status values are always in English, so scripts work in any language. Title, Details and Recommendation are in the language of the texts: the one from the Language parameter if you give it, otherwise the one saved with Set-ChekapConfig, otherwise the language of the Windows interface.
 
 ## EXAMPLES
 
@@ -75,7 +75,7 @@ Required: False
 Position: 2
 Default value: None
 Accept pipeline input: False
-Accept wildcard characters: False
+Accept wildcard characters: True
 ```
 
 ### CommonParameters

@@ -129,16 +129,24 @@ foreach ($currentTask in $Task) {
                 foreach ($culture in $docsFolder.Keys) {
                     if ($names -notcontains "Chekap/$culture/Chekap-help.xml") { $problems.Add("The zip has no Chekap/$culture/Chekap-help.xml.") }
                 }
-                $memory = New-Object -TypeName System.IO.MemoryStream
-                $stream = $archive.GetEntry('Start-Chekap.cmd').Open()
-                try { $stream.CopyTo($memory) } finally { $stream.Dispose() }
-                $original = [System.IO.File]::ReadAllBytes((Join-Path $PSScriptRoot 'Start-Chekap.cmd'))
-                if ([Convert]::ToBase64String($memory.ToArray()) -cne [Convert]::ToBase64String($original)) { $problems.Add('Start-Chekap.cmd in the zip differs from the file in the repository.') }
+                $launcher = $archive.GetEntry('Start-Chekap.cmd')
+                if ($null -eq $launcher) { $problems.Add('The zip has no Start-Chekap.cmd.') }
+                else {
+                    $memory = New-Object -TypeName System.IO.MemoryStream
+                    $stream = $launcher.Open()
+                    try { $stream.CopyTo($memory) } finally { $stream.Dispose() }
+                    $original = [System.IO.File]::ReadAllBytes((Join-Path $PSScriptRoot 'Start-Chekap.cmd'))
+                    if ([Convert]::ToBase64String($memory.ToArray()) -cne [Convert]::ToBase64String($original)) { $problems.Add('Start-Chekap.cmd in the zip differs from the file in the repository.') }
+                }
             }
             finally {
                 $archive.Dispose()
             }
-            if ($problems.Count -gt 0) { throw "Build self-check failed:`n - $($problems -join "`n - ")" }
+            if ($problems.Count -gt 0) {
+                # A bad package must not be left where it could be taken for a good one.
+                Remove-Item -LiteralPath $zip -Force
+                throw "Build self-check failed:`n - $($problems -join "`n - ")"
+            }
             Write-Output "Built out/Chekap-$($manifest.ModuleVersion).zip"
         }
         'Smoke' {
@@ -148,6 +156,8 @@ foreach ($currentTask in $Task) {
             # A real audit of this PC. Its reports stay in out/smoke (git-ignored).
             $results = @(Invoke-ChekapAudit -OutputPath (Join-Path $PSScriptRoot 'out/smoke'))
             Remove-Module Chekap
+            # Invoke-ChekapAudit returns silently when no check is loaded: a broken package must not pass.
+            if ($results.Count -eq 0) { throw 'Smoke failed: the audit returned no results.' }
             Write-Output ('Smoke: {0} findings. {1}' -f $results.Count, ((@($results | Group-Object -Property Status | Sort-Object -Property Name | ForEach-Object { '{0} {1}' -f $_.Name, $_.Count })) -join ', '))
             $failed = @($results | Where-Object { $_.Status -eq 'Error' })
             foreach ($result in $failed) { Write-Output ('{0}: {1}' -f $result.CheckId, $result.Details) }

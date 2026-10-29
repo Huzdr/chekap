@@ -6,6 +6,7 @@
         [ValidateSet('uk', 'en')]
         [string]$Language,
 
+        [SupportsWildcards()]
         [string[]]$CheckId
     )
 

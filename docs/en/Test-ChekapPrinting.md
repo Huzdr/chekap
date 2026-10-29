@@ -21,7 +21,7 @@ Runs the Printing checks and returns one Chekap.CheckResult object for each find
 
 The checks only read data. None of them changes the PC or needs administrator rights. For network printers and print servers they open a short TCP connection to the port of each printer, with a time limit for every printer and for all of them together. Virtual printers such as PDF are not checked. The names of documents and users in print queues are not collected. Unused printer drivers are only reported, never removed.
 
-Every result has a Status: OK, Warning, Critical, Error (the check itself could not finish) or Skipped (the check cannot run or does not apply, for example there is no scanner or the Print Spooler is stopped). The Status values are always in English, so scripts work in any language. Title, Details and Recommendation are in the language of the report: the Language parameter, else the language saved with Set-ChekapConfig, else the language of the Windows interface.
+Every result has a Status: OK, Warning, Critical, Error (the check itself could not finish) or Skipped (the check cannot run or does not apply, for example there is no scanner or the Print Spooler is stopped). The Status values are always in English, so scripts work in any language. Title, Details and Recommendation are in the language of the texts: the one from the Language parameter if you give it, otherwise the one saved with Set-ChekapConfig, otherwise the language of the Windows interface.
 
 ## EXAMPLES
 
@@ -75,7 +75,7 @@ Required: False
 Position: 2
 Default value: None
 Accept pipeline input: False
-Accept wildcard characters: False
+Accept wildcard characters: True
 ```
 
 ### CommonParameters
