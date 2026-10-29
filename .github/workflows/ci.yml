@@ -44,12 +44,14 @@ jobs:
         id: smoke
         run: |
           ./build.ps1 -Task Smoke
+          # $? keeps a failure even if Smoke ever switches from throw to exit 1; the reset below would hide that.
+          if (-not $?) { exit 1 }
           # The audit runs native tools. The runner fails a step on the last exit code left behind, even though Smoke passed.
           $global:LASTEXITCODE = 0
 
       # Artifact names must be unique per matrix leg, and the results are needed most when a step failed.
       - name: Upload test results
-        if: always()
+        if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v7
         with:
           name: testResults-${{ matrix.shell }}
@@ -62,6 +64,7 @@ jobs:
         with:
           name: Chekap-package
           path: out/Chekap-*.zip
+          if-no-files-found: error
 
       # These are reports of the runner, not of a real PC: the only way to see why Smoke failed without a rerun.
       - name: Upload smoke reports
