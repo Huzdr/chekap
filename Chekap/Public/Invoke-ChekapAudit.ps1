@@ -1,33 +1,5 @@
 ﻿function Invoke-ChekapAudit {
-    <#
-    .SYNOPSIS
-    Runs the Chekap checks on this PC and, with -OutputPath, saves an HTML and a JSON report.
-    .DESCRIPTION
-    Runs all checks, or the chosen categories or check IDs, and returns one Chekap.CheckResult object per finding.
-    With -OutputPath it also writes the report files Chekap-<ComputerName>-<yyyyMMdd-HHmm>.html and .json.
-    The HTML report is one file with no external resources: open it in any browser, print it or send it to a colleague.
-    It lists the PC passport (system, model, memory, IP addresses), the findings sorted from the worst to the best
-    and the data each finding is based on. The JSON file holds the same data for scripts. The checks only read data;
-    a check that needs administrator rights is reported as Skipped when PowerShell is not elevated.
-    Without -OutputPath no file is written.
-    .PARAMETER Category
-    Run only the checks of these categories: System, Network, Printing.
-    .PARAMETER CheckId
-    Run only these checks. Exact IDs or wildcards, for example NET-DNS-001 or PRN-*.
-    .PARAMETER Language
-    Language of the texts: uk or en. By default the saved setting or the system language.
-    .PARAMETER OutputPath
-    Folder for the report files. It is created if it does not exist, before the checks start; a relative path is relative to the current location.
-    A report is never overwritten: if the files of this minute already exist, the new ones get the suffix -2, -3 and so on.
-    .PARAMETER Format
-    File formats to write: Html, Json or both (the default).
-    .PARAMETER Note
-    A line of text for the top of the report, for example the complaint or the ticket number.
-    .EXAMPLE
-    Invoke-ChekapAudit -Language en -OutputPath C:\Reports -Note 'Ticket 4711: prints slowly'
-    .EXAMPLE
-    Invoke-ChekapAudit -Category Network, Printing -OutputPath .\reports -Format Html -Verbose
-    #>
+    # .ExternalHelp Chekap-help.xml
     [CmdletBinding()]
     [OutputType('Chekap.CheckResult')]
     param(

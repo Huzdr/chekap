@@ -1,13 +1,5 @@
 ﻿function Get-ChekapConfig {
-    <#
-    .SYNOPSIS
-    Gets the Chekap settings.
-    .DESCRIPTION
-    Reads %APPDATA%\Chekap\config.json. A missing, unreadable or invalid file gives the defaults,
-    so the command never throws because of the settings file.
-    .EXAMPLE
-    Get-ChekapConfig
-    #>
+    # .ExternalHelp Chekap-help.xml
     [CmdletBinding()]
     [OutputType('Chekap.Config')]
     param()

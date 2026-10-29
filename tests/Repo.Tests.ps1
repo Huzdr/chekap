@@ -133,6 +133,58 @@ Describe 'Check file <Name>' -ForEach $script:checkCases {
     }
 }
 
+BeforeDiscovery {
+    $publicDir = Join-Path (Split-Path -Path $PSScriptRoot -Parent) 'Chekap/Public'
+    $script:helpCases = @(Get-ChildItem -Path $publicDir -Filter '*.ps1' -File | ForEach-Object { @{ Command = $_.BaseName } })
+    $script:helpLanguages = @(@{ Lang = 'en' }, @{ Lang = 'uk' })
+}
+
+Describe 'Command help' {
+    BeforeAll {
+        Import-Module (Join-Path $script:root 'Chekap/Chekap.psd1') -Force
+    }
+
+    AfterAll {
+        Remove-Module Chekap -ErrorAction SilentlyContinue
+    }
+
+    Context '<Command>' -ForEach $script:helpCases {
+        BeforeAll {
+            $script:pagePath = { param($lang) Join-Path $script:root "docs/$lang/$Command.md" }
+            $script:readPage = { param($lang) Get-Content -LiteralPath (& $script:pagePath $lang) -Raw -Encoding UTF8 -ErrorAction Stop }
+            $script:synopsis = { param($lang) [regex]::Match((& $script:readPage $lang), '(?ms)^## SYNOPSIS\r?\n(.*?)^## ').Groups[1].Value }
+        }
+
+        It 'has a docs/<Lang> page' -ForEach $script:helpLanguages {
+            Test-Path -LiteralPath (& $script:pagePath $Lang) -PathType Leaf | Should -BeTrue
+        }
+
+        It 'docs/<Lang> page has no platyPS placeholder left' -ForEach $script:helpLanguages {
+            (& $script:readPage $Lang) | Should -Not -Match '\{\{.*?\}\}'
+        }
+
+        It 'docs/<Lang> parameter headings equal the real parameters of the command' -ForEach $script:helpLanguages {
+            $documented = @([regex]::Matches((& $script:readPage $Lang), '(?m)^### -(\w+)\s*$') | ForEach-Object { $_.Groups[1].Value } | Sort-Object)
+            $real = @((Get-Command -Name $Command).Parameters.Keys | Where-Object { $_ -notin [System.Management.Automation.PSCmdlet]::CommonParameters } | Sort-Object)
+            # Joined: an empty list piped to Should would be $null, and a command without parameters has none.
+            ($documented -join ',') | Should -Be ($real -join ',')
+        }
+
+        It 'the function body starts with the ExternalHelp line' {
+            $source = Get-Content -LiteralPath (Join-Path $script:root "Chekap/Public/$Command.ps1") -Raw -Encoding UTF8
+            $source | Should -Match '^function [\w-]+ \{\r?\n[ \t]*# \.ExternalHelp Chekap-help\.xml\r?\n'
+        }
+
+        It 'docs/uk SYNOPSIS is translated' {
+            (& $script:synopsis 'uk') | Should -Match '[Ѐ-ӿ]'
+        }
+
+        It 'docs/en page has no Cyrillic' {
+            (& $script:readPage 'en') | Should -Not -Match '[Ѐ-ӿ]'
+        }
+    }
+}
+
 Describe 'Start-Chekap.cmd launcher' {
     BeforeAll {
         $script:cmdPath = Join-Path $script:root 'Start-Chekap.cmd'

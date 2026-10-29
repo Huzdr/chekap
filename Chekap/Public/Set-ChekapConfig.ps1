@@ -1,15 +1,5 @@
 ﻿function Set-ChekapConfig {
-    <#
-    .SYNOPSIS
-    Saves the Chekap settings.
-    .DESCRIPTION
-    Writes %APPDATA%\Chekap\config.json for the current user. Supports -WhatIf and -Confirm.
-    .PARAMETER Language
-    Language of the checks, reports and messages: uk (Ukrainian) or en (English).
-    Without a saved language Chekap follows the language of the Windows interface.
-    .EXAMPLE
-    Set-ChekapConfig -Language uk
-    #>
+    # .ExternalHelp Chekap-help.xml
     [CmdletBinding(SupportsShouldProcess)]
     param(
         [Parameter(Mandatory)]

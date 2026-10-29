@@ -1,17 +1,5 @@
 ﻿function Start-Chekap {
-    <#
-    .SYNOPSIS
-    Opens a console menu for running the Chekap checks without typing commands.
-    .DESCRIPTION
-    Shows a numbered menu: run all checks or one category, run all checks and save an HTML and a JSON report,
-    switch between Ukrainian and English, or exit. Findings are printed from the worst to the best, each with
-    its status in words, the details and what to do. The report goes to the Chekap folder inside Documents
-    and opens in the default browser. The language chosen in the menu is saved with Set-ChekapConfig.
-    The checks only read data. Without administrator rights the checks that need them are reported as Skipped.
-    The menu reads from the console, so it needs an interactive PowerShell window.
-    .EXAMPLE
-    Start-Chekap
-    #>
+    # .ExternalHelp Chekap-help.xml
     [CmdletBinding()]
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'The menu talks to the person at the console; it is not meant for the pipeline.')]
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'The person picks each action in the menu; the only config write goes through Set-ChekapConfig, which supports ShouldProcess.')]
