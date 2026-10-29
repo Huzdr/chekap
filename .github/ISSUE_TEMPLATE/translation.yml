@@ -1,0 +1,44 @@
+name: Translation or wording / Переклад або формулювання
+description: A text is wrong, unclear or unnatural / Текст хибний, незрозумілий або неприродний
+title: "[Translation]: "
+labels:
+  - translation
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Ukrainian texts should read as plain, correct Ukrainian. The words used in both languages are in docs/glossary.md.
+        Українські тексти мають читатися як проста, правильна українська мова. Слова, спільні для двох мов, зібрано в docs/glossary.md.
+  - type: dropdown
+    id: language
+    attributes:
+      label: Language of the text / Мова тексту
+      options:
+        - Українська / Ukrainian
+        - English
+    validations:
+      required: true
+  - type: input
+    id: where
+    attributes:
+      label: Where / Де
+      description: "The string key, for example PRN-QUEUE-001.Stuck.Details, or the file, for example README.uk.md / Ключ рядка, наприклад PRN-QUEUE-001.Stuck.Details, або файл, наприклад README.uk.md"
+    validations:
+      required: true
+  - type: textarea
+    id: current
+    attributes:
+      label: Current text / Поточний текст
+    validations:
+      required: true
+  - type: textarea
+    id: proposed
+    attributes:
+      label: Proposed text / Запропонований текст
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why / Чому
+      description: What is wrong with the current text. / Що не так із поточним текстом.

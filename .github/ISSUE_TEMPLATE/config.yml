@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability / Повідомити про вразливість
+    url: https://github.com/Huzdr/chekap/security/advisories/new
+    about: A private report. Do not open a public issue for a security problem. / Приватне повідомлення. Не створюйте публічний issue про проблему безпеки.

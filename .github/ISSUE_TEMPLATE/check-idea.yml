@@ -1,0 +1,47 @@
+name: Idea for a check / Ідея перевірки
+description: Suggest a problem that Chekap should find / Запропонуйте проблему, яку Chekap має знаходити
+title: "[Check idea]: "
+labels:
+  - check-idea
+body:
+  - type: markdown
+    attributes:
+      value: |
+        You do not need to write the code: a clear description is enough. See CONTRIBUTING.md if you want to write the check yourself.
+        Писати код не обов'язково: досить чіткого опису. Якщо хочете написати перевірку самі, див. CONTRIBUTING.uk.md.
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem / Проблема
+      description: What goes wrong for the user or the admin, and how often you meet it. / Що йде не так для користувача чи адміністратора і як часто ви з цим стикаєтеся.
+    validations:
+      required: true
+  - type: textarea
+    id: recognize
+    attributes:
+      label: How to recognize it on a PC / Як розпізнати це на ПК
+      description: "A command, a registry value, an event or a service state that shows it. A link to the Microsoft documentation helps. / Команда, значення реєстру, подія або стан служби, що це показує. Допоможе посилання на документацію Microsoft."
+    validations:
+      required: true
+  - type: textarea
+    id: advice
+    attributes:
+      label: What the admin should do / Що має зробити адміністратор
+      description: The advice that the finding should give. / Порада, яку має давати знахідка.
+  - type: dropdown
+    id: category
+    attributes:
+      label: Category / Категорія
+      options:
+        - System / Система
+        - Network / Мережа
+        - Printing / Друк
+        - Other / Інша
+    validations:
+      required: true
+  - type: checkboxes
+    id: help
+    attributes:
+      label: Help / Допомога
+      options:
+        - label: I can write the check myself. / Я можу написати цю перевірку сам(а).

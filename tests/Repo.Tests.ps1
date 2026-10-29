@@ -315,3 +315,194 @@ Describe 'GitHub workflows' {
         $bad | Should -BeNullOrEmpty
     }
 }
+
+BeforeDiscovery {
+    $script:readmeCases = @(
+        @{ Lang = 'en'; File = 'README.md' }
+        @{ Lang = 'uk'; File = 'README.uk.md' }
+    )
+    $script:formNames = @('bug', 'check-idea', 'translation')
+}
+
+Describe 'Documentation and community files' {
+    BeforeAll {
+        $script:markdown = @('README.md', 'README.uk.md', 'CONTRIBUTING.md', 'CONTRIBUTING.uk.md', 'CODE_OF_CONDUCT.md', 'SECURITY.md', 'CHANGELOG.md', 'docs/glossary.md', '.github/pull_request_template.md')
+        $script:forms = @('bug.yml', 'check-idea.yml', 'translation.yml', 'config.yml') | ForEach-Object { ".github/ISSUE_TEMPLATE/$_" }
+        $script:readText = { param($relative) [System.IO.File]::ReadAllText((Join-Path $script:root $relative), [System.Text.Encoding]::UTF8) }
+    }
+
+    It 'every document, issue form and screenshot exists' {
+        $needed = @($script:markdown) + @($script:forms) + @('docs/images/report-uk.png', 'docs/images/report-en.png')
+        @($needed | Where-Object { -not (Test-Path -LiteralPath (Join-Path $script:root $_) -PathType Leaf) }) | Should -BeNullOrEmpty
+    }
+
+    It 'documents and issue forms are UTF-8 without a BOM' {
+        $bom = @($script:markdown) + @($script:forms) | Where-Object {
+            $path = Join-Path $script:root $_
+            (Test-Path -LiteralPath $path) -and ((([System.IO.File]::ReadAllBytes($path) | Select-Object -First 3) -join ',') -eq '239,187,191')
+        }
+        $bom | Should -BeNullOrEmpty
+    }
+
+    It 'relative links in the documents point to files that exist' {
+        $broken = foreach ($relative in $script:markdown) {
+            $path = Join-Path $script:root $relative
+            if (-not (Test-Path -LiteralPath $path)) { continue }
+            $folder = Split-Path -Path $path -Parent
+            foreach ($match in [regex]::Matches((& $script:readText $relative), '\]\(([^)\s]+)\)')) {
+                $target = $match.Groups[1].Value
+                if ($target -match '^(https?:|mailto:|#)') { continue }
+                $file = ($target -split '#')[0]
+                if (-not (Test-Path -LiteralPath (Join-Path $folder $file))) { "$relative -> $target" }
+            }
+        }
+        $broken | Should -BeNullOrEmpty
+    }
+
+    It 'no file of the repository names the PC or the domain the tests run on' {
+        # Real names must not leak into docs, fixtures or demo data. Generic words (a user called Admin) are not checked here.
+        $names = @($env:COMPUTERNAME, $env:USERDOMAIN) | Where-Object { $_ -and $_.Length -ge 4 } | Select-Object -Unique
+        $files = Get-ChildItem -Path $script:root -Recurse -File -Force |
+            Where-Object { $_.FullName.Substring($script:root.Length) -notmatch '[\\/](\.git|out|\.superpowers)[\\/]' -and $_.Extension -in '.md', '.yml', '.ps1', '.psm1', '.psd1', '.html', '.json', '.cmd' }
+        $hits = foreach ($name in $names) {
+            $files | Select-String -Pattern ('(?<![\w-])' + [regex]::Escape($name) + '(?![\w-])') -Encoding UTF8 | ForEach-Object { $_.Path }
+        }
+        $hits | Should -BeNullOrEmpty
+    }
+
+    It 'both screenshots are PNG files 1280 pixels wide and under 500 KB' {
+        $bad = foreach ($name in 'report-uk.png', 'report-en.png') {
+            $path = Join-Path $script:root "docs/images/$name"
+            if (-not (Test-Path -LiteralPath $path)) { "$name is missing"; continue }
+            $bytes = [System.IO.File]::ReadAllBytes($path)
+            if (($bytes[0..7] -join ',') -ne '137,80,78,71,13,10,26,10') { "$name is not a PNG file"; continue }
+            $width = $bytes[16] * 16777216 + $bytes[17] * 65536 + $bytes[18] * 256 + $bytes[19]
+            if ($width -ne 1280) { "$name is $width pixels wide" }
+            if ($bytes.Length -gt 500KB) { "$name is $($bytes.Length) bytes" }
+        }
+        $bad | Should -BeNullOrEmpty
+    }
+
+    It 'both CONTRIBUTING files show the real SYS-UPTIME-001 file as the template' {
+        $check = [System.IO.File]::ReadAllText((Join-Path $script:root 'Chekap/Checks/System/SYS-UPTIME-001.ps1'), [System.Text.Encoding]::UTF8).Replace("`r`n", "`n").TrimEnd()
+        foreach ($file in 'CONTRIBUTING.md', 'CONTRIBUTING.uk.md') {
+            (& $script:readText $file).Replace("`r`n", "`n").Contains($check) | Should -BeTrue -Because "$file must show the current SYS-UPTIME-001.ps1"
+        }
+    }
+    It 'README.md and README.uk.md have the same sections' {
+        $count = { param($file) @([regex]::Matches((& $script:readText $file), '(?m)^## ')).Count }
+        (& $count 'README.uk.md') | Should -BeGreaterThan 5
+        (& $count 'README.uk.md') | Should -Be (& $count 'README.md')
+    }
+
+    It 'CONTRIBUTING.md and CONTRIBUTING.uk.md have the same sections' {
+        $count = { param($file) @([regex]::Matches((& $script:readText $file), '(?m)^## ')).Count }
+        (& $count 'CONTRIBUTING.uk.md') | Should -BeGreaterThan 3
+        (& $count 'CONTRIBUTING.uk.md') | Should -Be (& $count 'CONTRIBUTING.md')
+    }
+
+    It 'the English documents have Cyrillic only in the link to the Ukrainian version' {
+        $lines = foreach ($file in 'README.md', 'CONTRIBUTING.md') {
+            foreach ($line in ((& $script:readText $file) -split '\r?\n')) { if ($line -match '[Ѐ-ӿ]') { "${file}: $line" } }
+        }
+        @($lines).Count | Should -BeLessOrEqual 2
+    }
+
+    It 'every section heading of the Ukrainian documents is in Ukrainian' {
+        $english = foreach ($file in 'README.uk.md', 'CONTRIBUTING.uk.md') {
+            foreach ($line in ((& $script:readText $file) -split '\r?\n')) { if ($line -match '^##? ' -and $line -notmatch '[Ѐ-ӿ]' -and $line -notmatch '^# Chekap\s*$') { "${file}: $line" } }
+        }
+        $english | Should -BeNullOrEmpty
+    }
+
+    It 'the glossary has at least 20 terms and every Ukrainian term is used in the Ukrainian strings or help' {
+        $text = & $script:readText 'docs/glossary.md'
+        $rows = @([regex]::Matches($text, '(?m)^\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|[^\r\n]*\|\s*$') | Where-Object { $_.Groups[1].Value -notmatch '^(-+|English)$' -and $_.Groups[2].Value -notmatch '^-+$' })
+        $rows.Count | Should -BeGreaterOrEqual 20
+        # The values of the table, not its source: in the source an apostrophe is doubled.
+        $corpus = @((Import-PowerShellDataFile -Path (Join-Path $script:root 'Chekap/uk-UA/Chekap.strings.psd1')).Values) -join "`n"
+        foreach ($page in Get-ChildItem -Path (Join-Path $script:root 'docs/uk') -Filter '*.md') { $corpus += [System.IO.File]::ReadAllText($page.FullName, [System.Text.Encoding]::UTF8) }
+        $unused = foreach ($row in $rows) {
+            $term = $row.Groups[2].Value
+            if ($corpus.IndexOf($term, [System.StringComparison]::OrdinalIgnoreCase) -lt 0) { $term }
+        }
+        $unused | Should -BeNullOrEmpty
+    }
+}
+
+Describe 'CHANGELOG' {
+    It 'has an Unreleased section and a section for the version of the manifest, and the release notes step can read it' {
+        $text = [System.IO.File]::ReadAllText((Join-Path $script:root 'CHANGELOG.md'), [System.Text.Encoding]::UTF8)
+        $text | Should -Match '(?m)^## \[Unreleased\]'
+        $version = (Import-PowerShellDataFile -Path $script:manifest).ModuleVersion
+        $notes = & (Join-Path $script:root 'tools/Get-ChangelogNotes.ps1') -Version $version
+        $notes | Should -Not -BeNullOrEmpty
+        $text | Should -Match ('(?m)^\[' + [regex]::Escape($version) + '\]: https://github\.com/Huzdr/chekap/')
+        $text | Should -Match '(?m)^\[Unreleased\]: https://github\.com/Huzdr/chekap/'
+    }
+}
+
+Describe 'README check tables' {
+    BeforeAll {
+        # -Check only compares: nothing is written.
+        $script:tables = @(& (Join-Path $script:root 'tools/Update-ReadmeChecks.ps1') -Check)
+        $script:checkIds = @(Get-ChildItem -Path (Join-Path $script:root 'Chekap/Checks') -Filter '*.ps1' -Recurse -File | ForEach-Object { $_.BaseName })
+    }
+
+    Context '<File>' -ForEach $script:readmeCases {
+        It 'has exactly one checks block' {
+            $text = [System.IO.File]::ReadAllText((Join-Path $script:root $File), [System.Text.Encoding]::UTF8)
+            [regex]::Matches($text, '<!-- checks:start -->').Count | Should -Be 1
+            [regex]::Matches($text, '<!-- checks:end -->').Count | Should -Be 1
+        }
+
+        It 'lists every check Id' {
+            $text = [System.IO.File]::ReadAllText((Join-Path $script:root $File), [System.Text.Encoding]::UTF8)
+            $script:checkIds.Count | Should -BeGreaterThan 0
+            @($script:checkIds | Where-Object { $text -notmatch [regex]::Escape($_) }) | Should -BeNullOrEmpty
+        }
+
+        It 'has the table that the generator would write now' {
+            $table = @($script:tables | Where-Object { $_.Language -eq $Lang })
+            $table.Count | Should -Be 1
+            $table[0].Current | Should -Not -BeNullOrEmpty
+            $table[0].Current | Should -BeExactly $table[0].Expected
+        }
+    }
+}
+
+Describe 'Issue forms and pull request template' {
+    BeforeAll {
+        $script:formText = { param($name) [System.IO.File]::ReadAllText((Join-Path $script:root ".github/ISSUE_TEMPLATE/$name"), [System.Text.Encoding]::UTF8) }
+    }
+
+    Context '<_>.yml' -ForEach $script:formNames {
+        It 'is an issue form with a name, a description, the label and a body, without tabs' {
+            $text = & $script:formText "$_.yml"
+            $text | Should -Match '(?m)^name: \S'
+            $text | Should -Match '(?m)^description: \S'
+            $text | Should -Match ('(?m)^labels:\s*\r?\n\s+- ' + [regex]::Escape($_) + '\s*$')
+            $text | Should -Match '(?m)^body:'
+            $text | Should -Not -Match "`t"
+        }
+
+        It 'has unique ids made of lowercase letters, digits, - and _' {
+            $ids = @([regex]::Matches((& $script:formText "$_.yml"), '(?m)^\s+id: (.*?)\s*$') | ForEach-Object { $_.Groups[1].Value })
+            $ids.Count | Should -BeGreaterThan 0
+            @($ids | Where-Object { $_ -cnotmatch '^[a-z0-9_-]+$' }) | Should -BeNullOrEmpty
+            @($ids | Select-Object -Unique).Count | Should -Be $ids.Count
+        }
+    }
+
+    It 'the bug form has a required confirmation that real names were replaced' {
+        $text = & $script:formText 'bug.yml'
+        $text | Should -Match '(?m)^\s+(?:- )?type: checkboxes'
+        $text | Should -Match '(?ms)- label: [^\r\n]*\r?\n\s+required: true'
+    }
+
+    It 'blank issues are off and the contact link goes to private security advisories' {
+        $text = & $script:formText 'config.yml'
+        $text | Should -Match '(?m)^blank_issues_enabled: false\s*$'
+        $text | Should -Match 'url: https://github\.com/Huzdr/chekap/security/advisories/new'
+    }
+}
