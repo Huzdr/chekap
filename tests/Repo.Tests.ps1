@@ -167,9 +167,29 @@ Describe 'Start-Chekap.cmd launcher' {
         $script:cmdText | Should -Match '(?m)^:menu\r$'
     }
 
+    It 'hands its own paths to PowerShell through environment variables, not inside a quoted string' {
+        # A path with an apostrophe (Дем'ян, U+2019) would end a PowerShell single-quoted string early.
+        $script:cmdText | Should -Not -Match "'%~"
+        $script:cmdText | Should -Match '(?m)^setlocal\r$'
+        $script:cmdText | Should -Match '(?m)^set "CHEKAP_SELF=%~f0"\r$'
+        $script:cmdText | Should -Match '(?m)^set "CHEKAP_HOME=%~dp0"\r$'
+        $script:cmdText | Should -Match ([regex]::Escape('-FilePath $env:CHEKAP_SELF -ArgumentList'))
+        # Both are set before the elevated marker is tested: the elevated copy needs them too.
+        $guard = $script:cmdText.IndexOf('if "%~1"=="elevated"')
+        $script:cmdText.IndexOf('set "CHEKAP_SELF=') | Should -BeLessThan $guard
+        $script:cmdText.IndexOf('set "CHEKAP_HOME=') | Should -BeLessThan $guard
+    }
+
     It 'imports the module that sits next to it and starts the menu' {
-        $script:cmdText | Should -Match ([regex]::Escape("-Command ""Import-Module '%~dp0Chekap\Chekap.psd1'; Start-Chekap"""))
+        $script:cmdText | Should -Match ([regex]::Escape("-Command ""Import-Module (Join-Path `$env:CHEKAP_HOME 'Chekap\Chekap.psd1'); Start-Chekap"""))
         Test-Path -LiteralPath (Join-Path $script:root 'Chekap/Chekap.psd1') | Should -BeTrue
+    }
+
+    It 'closes the window when the menu ends and pauses only after a failure' {
+        $script:cmdText | Should -Not -Match '-NoExit'
+        $lines = @($script:cmdText -split '\r\n' | Where-Object { $_ })
+        $lines[-2] | Should -BeLike '*Start-Chekap"'
+        $lines[-1] | Should -Be 'if errorlevel 1 pause'
     }
 
     It 'is left alone by tools/Add-Bom.ps1' {

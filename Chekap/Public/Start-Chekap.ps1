@@ -14,7 +14,7 @@
     #>
     [CmdletBinding()]
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'The menu talks to the person at the console; it is not meant for the pipeline.')]
-    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'An interactive menu: it changes nothing by itself, and each item that writes a file is chosen and seen by the person.')]
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'The person picks each action in the menu; the only config write goes through Set-ChekapConfig, which supports ShouldProcess.')]
     param()
 
     # The language is session state: item 6 changes this variable, and the saved setting is read only once, here.
@@ -79,7 +79,7 @@
             # A failed export or a missing browser must not close the menu: tell the person and go back to it.
             try {
                 $folder = Join-Path -Path ([Environment]::GetFolderPath('MyDocuments')) -ChildPath 'Chekap'
-                $files = @(Export-ChekapReport -Result $results -Language $lang -OutputPath $folder -SystemInfo (Get-ChekapSystemInfo))
+                $files = @(Export-ChekapReport -Result $results -Language $lang -OutputPath $folder -Format Html, Json -SystemInfo (Get-ChekapSystemInfo))
                 $html = ($files | Where-Object { $_.Extension -eq '.html' } | Select-Object -First 1).FullName
                 Write-Host (Get-ChekapText -Strings $strings -Key 'Tui.ReportSaved' -FormatArgs $html) -ForegroundColor Green
                 try {

@@ -6,7 +6,7 @@
     $script:uk = Import-PowerShellDataFile -Path (Join-Path $script:root 'Chekap/uk-UA/Chekap.strings.psd1')
 
     # The log lines the mocks write, in the order the host would see them: CLEAR, SAY|<colour>|<text>, ASK|<prompt>,
-    # CHECK|<language>|<ids>, EXPORT|<language>|<folder>|<result count>|<computer>, OPEN|<file>, CONFIG|<language>.
+    # CHECK|<language>|<ids>, EXPORT|<language>|<folder>|<result count>|<computer>|<formats>, OPEN|<file>, CONFIG|<language>.
     $script:say = { param([string]$Color, [string]$Text) "SAY|$Color|$Text" }
     # The check IDs a menu item must run, from the real registry. No category means all checks.
     $script:ids = {
@@ -43,6 +43,44 @@
         $end = if ($Number + 1 -lt $starts.Count) { $starts[$Number + 1] - 1 } else { $Log.Count - 1 }
         , [string[]]@($Log[$starts[$Number]..$end])
     }
+    # What every Start-Chekap test starts from. -RealConfig leaves Set-ChekapConfig unmocked (the caller must then fake Get-ChekapConfigPath).
+    $script:startMocks = {
+        param([switch]$RealConfig)
+        $script:TuiConfigLanguage = 'uk'
+        $script:TuiResults = InModuleScope Chekap {
+            $pc = 'PC-042'
+            $check = { param($id, $category) @{ Id = $id; Category = $category; References = @('https://learn.microsoft.com/windows/') } }
+            @(
+                New-ChekapResult -Check (& $check 'SYS-UPTIME-001' 'System') -Status OK -Title 'Uptime' -Details 'Up for 3 days.' -ComputerName $pc
+                New-ChekapResult -Check (& $check 'PRN-SPOOLER-001' 'Printing') -Status Critical -Title 'Print spooler' -Details 'The spooler is stopped.' `
+                    -Recommendation 'Start the Print Spooler service.' -Target 'PRN-2F-HP' -ComputerName $pc
+            )
+        }
+        # Nothing here touches the real console, the real settings file or the real Documents folder.
+        Mock Clear-Host { $script:TuiLog.Add('CLEAR') } -ModuleName Chekap
+        Mock Write-Host { $script:TuiLog.Add(('SAY|{0}|{1}' -f $ForegroundColor, ($Object -join ' '))) } -ModuleName Chekap
+        # An empty queue throws, so a loop that never ends fails the test instead of hanging it.
+        Mock Read-Host { $script:TuiLog.Add("ASK|$Prompt"); $script:TuiAnswers.Dequeue() } -ModuleName Chekap
+        Mock Get-ChekapConfig { [pscustomobject]@{ Language = $script:TuiConfigLanguage } } -ModuleName Chekap
+        if (-not $RealConfig) {
+            Mock Set-ChekapConfig { $script:TuiLog.Add("CONFIG|$Language") } -ModuleName Chekap
+        }
+        Mock Test-ChekapAdmin { $true } -ModuleName Chekap
+        Mock Get-ChekapSystemInfo { @{ ComputerName = 'PC-042' } } -ModuleName Chekap
+        Mock Invoke-ChekapCheck {
+            $script:TuiLog.Add(('CHECK|{0}|{1}' -f $Language, (($Check | ForEach-Object { $_.Id }) -join ',')))
+            $script:TuiResults
+        } -ModuleName Chekap
+        Mock Export-ChekapReport {
+            $script:TuiLog.Add(('EXPORT|{0}|{1}|{2}|{3}|{4}' -f $Language, $OutputPath, @($Result).Count, $SystemInfo.ComputerName, ($Format -join ',')))
+            # The JSON first: the menu must pick the HTML by its extension.
+            [System.IO.FileInfo]::new((Join-Path $OutputPath 'Chekap-PC-042-20260310-1130.json'))
+            [System.IO.FileInfo]::new((Join-Path $OutputPath 'Chekap-PC-042-20260310-1130.html'))
+        } -ModuleName Chekap
+        Mock Invoke-Item { $script:TuiLog.Add("OPEN|$LiteralPath") } -ModuleName Chekap
+        $script:reportFolder = Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'Chekap'
+        $script:reportHtml = Join-Path $script:reportFolder 'Chekap-PC-042-20260310-1130.html'
+    }
 }
 
 AfterAll {
@@ -54,7 +92,7 @@ Describe 'Show-ChekapResult' {
         # Built the way the runner builds them, in a deliberately mixed order.
         $script:results = InModuleScope Chekap {
             $pc = 'PC-042'
-            $check ={ param($id, $category) @{ Id = $id; Category = $category; References = @('https://learn.microsoft.com/windows/') } }
+            $check = { param($id, $category) @{ Id = $id; Category = $category; References = @('https://learn.microsoft.com/windows/') } }
             $make = {
                 param($id, $category, $status, $title, $details, $recommendation, $target)
                 New-ChekapResult -Check (& $check $id $category) -Status $status -Title $title -Details $details `
@@ -150,38 +188,7 @@ Describe 'Show-ChekapResult' {
 
 Describe 'Start-Chekap' {
     BeforeEach {
-        $script:TuiConfigLanguage = 'uk'
-        $script:TuiResults = InModuleScope Chekap {
-            $pc = 'PC-042'
-            $check ={ param($id, $category) @{ Id = $id; Category = $category; References = @('https://learn.microsoft.com/windows/') } }
-            @(
-                New-ChekapResult -Check (& $check 'SYS-UPTIME-001' 'System') -Status OK -Title 'Uptime' -Details 'Up for 3 days.' -ComputerName $pc
-                New-ChekapResult -Check (& $check 'PRN-SPOOLER-001' 'Printing') -Status Critical -Title 'Print spooler' -Details 'The spooler is stopped.' `
-                    -Recommendation 'Start the Print Spooler service.' -Target 'PRN-2F-HP' -ComputerName $pc
-            )
-        }
-        # Nothing here touches the real console, the real settings file or the real Documents folder.
-        Mock Clear-Host { $script:TuiLog.Add('CLEAR') } -ModuleName Chekap
-        Mock Write-Host { $script:TuiLog.Add(('SAY|{0}|{1}' -f $ForegroundColor, ($Object -join ' '))) } -ModuleName Chekap
-        # An empty queue throws, so a loop that never ends fails the test instead of hanging it.
-        Mock Read-Host { $script:TuiLog.Add("ASK|$Prompt"); $script:TuiAnswers.Dequeue() } -ModuleName Chekap
-        Mock Get-ChekapConfig { [pscustomobject]@{ Language = $script:TuiConfigLanguage } } -ModuleName Chekap
-        Mock Set-ChekapConfig { $script:TuiLog.Add("CONFIG|$Language") } -ModuleName Chekap
-        Mock Test-ChekapAdmin { $true } -ModuleName Chekap
-        Mock Get-ChekapSystemInfo { @{ ComputerName = 'PC-042' } } -ModuleName Chekap
-        Mock Invoke-ChekapCheck {
-            $script:TuiLog.Add(('CHECK|{0}|{1}' -f $Language, (($Check | ForEach-Object { $_.Id }) -join ',')))
-            $script:TuiResults
-        } -ModuleName Chekap
-        Mock Export-ChekapReport {
-            $script:TuiLog.Add(('EXPORT|{0}|{1}|{2}|{3}' -f $Language, $OutputPath, @($Result).Count, $SystemInfo.ComputerName))
-            # The JSON first: the menu must pick the HTML by its extension.
-            [System.IO.FileInfo]::new((Join-Path $OutputPath 'Chekap-PC-042-20260310-1130.json'))
-            [System.IO.FileInfo]::new((Join-Path $OutputPath 'Chekap-PC-042-20260310-1130.html'))
-        } -ModuleName Chekap
-        Mock Invoke-Item { $script:TuiLog.Add("OPEN|$LiteralPath") } -ModuleName Chekap
-        $script:reportFolder = Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'Chekap'
-        $script:reportHtml = Join-Path $script:reportFolder 'Chekap-PC-042-20260310-1130.html'
+        & $script:startMocks
     }
 
     Context 'the screen' {
@@ -288,7 +295,7 @@ Describe 'Start-Chekap' {
             $ids = & $script:ids $null
             $order = @(
                 "CHECK|uk|$ids"
-                "EXPORT|uk|$($script:reportFolder)|2|PC-042"
+                "EXPORT|uk|$($script:reportFolder)|2|PC-042|Html,Json"
                 (& $script:say 'Green' ($script:uk['Tui.ReportSaved'] -f $script:reportHtml))
                 "OPEN|$($script:reportHtml)"
                 "ASK|$($script:uk['Tui.PressEnter'])"
@@ -392,7 +399,7 @@ Describe 'Start-Chekap' {
 
         It 'exports the report in the new language' {
             $run = & $script:drive -Answers '6', '5', '', '0'
-            @($run.Log | Where-Object { $_ -like 'EXPORT|*' }) | Should -Be @("EXPORT|en|$($script:reportFolder)|2|PC-042")
+            @($run.Log | Where-Object { $_ -like 'EXPORT|*' }) | Should -Be @("EXPORT|en|$($script:reportFolder)|2|PC-042|Html,Json")
             $run.Log | Should -Contain (& $script:say 'Green' ($script:en['Tui.ReportSaved'] -f $script:reportHtml))
         }
 
@@ -417,6 +424,33 @@ Describe 'Start-Chekap' {
     }
 }
 
+Describe 'Start-Chekap with the real Set-ChekapConfig' {
+    BeforeEach {
+        & $script:startMocks -RealConfig
+        # The settings folder would have to be created below a file, so the real write fails the way a blocked or read-only %APPDATA% does.
+        $script:blocker = Join-Path $TestDrive 'blocker'
+        Set-Content -LiteralPath $script:blocker -Value 'not a folder'
+        Mock Get-ChekapConfigPath { Join-Path $script:blocker 'Chekap/config.json' } -ModuleName Chekap
+    }
+
+    It 'survives a failed save, says so, and uses the new language for the next run' {
+        $run = & $script:drive -Answers '6', '1', '', '0'
+        # The error text comes from the system, so the line is matched around the {0} of the message.
+        $parts = $script:en['Tui.LanguageNotSaved'] -split '\{0\}'
+        $notSaved = '^' + [regex]::Escape("SAY|Yellow|$($parts[0])") + '.+' + [regex]::Escape($parts[1]) + '$'
+        $second = & $script:screen $run.Log 1
+        $second = $second[0..([array]::IndexOf($second, "ASK|$($script:en['Tui.Prompt'])"))]
+        $second[-3] | Should -Be (& $script:say 'Green' $script:en['Tui.LanguageSet'])
+        $second[-2] | Should -Match $notSaved
+        $second[-1] | Should -Be "ASK|$($script:en['Tui.Prompt'])"
+        @($run.Log | Where-Object { $_ -like 'CHECK|*' }) | Should -Be @("CHECK|en|$(& $script:ids $null)")
+        $run.Log[-1] | Should -Be "ASK|$($script:en['Tui.Prompt'])"
+        # It was the real command that ran and failed: it asked for its path, and wrote nothing.
+        Should -Invoke Get-ChekapConfigPath -ModuleName Chekap -Times 1 -Exactly
+        Test-Path -LiteralPath (Join-Path $script:blocker 'Chekap') | Should -BeFalse
+    }
+}
+
 Describe 'Tui strings' {
     BeforeAll {
         $script:code = (Get-Content -LiteralPath (Join-Path $script:root 'Chekap/Public/Start-Chekap.ps1'), (Join-Path $script:root 'Chekap/Private/Show-ChekapResult.ps1') -Raw -Encoding UTF8) -join "`n"
@@ -426,6 +460,11 @@ Describe 'Tui strings' {
         foreach ($table in $script:en, $script:uk) {
             foreach ($item in 0..6) { $table.ContainsKey("Tui.Menu.$item") | Should -BeTrue }
         }
+    }
+
+    It 'the NotAdmin line fits one 80-column console line in both languages' {
+        $script:en['Tui.NotAdmin'].Length | Should -BeLessOrEqual 79
+        $script:uk['Tui.NotAdmin'].Length | Should -BeLessOrEqual 79
     }
 
     It 'every Tui key the code asks for exists in both languages' {
