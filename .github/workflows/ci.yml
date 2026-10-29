@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Windows minutes count double on a private repo: a newer push makes the running one pointless.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: test (${{ matrix.shell }})
+    runs-on: windows-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        shell: [powershell, pwsh]
+    defaults:
+      run:
+        shell: ${{ matrix.shell }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      # One step per build task: a red step names the stage that broke.
+      - name: Bootstrap
+        run: ./build.ps1 -Task Bootstrap
+      - name: Lint
+        run: ./build.ps1 -Task Lint
+      - name: Test
+        run: ./build.ps1 -Task Test
+      - name: Build
+        run: ./build.ps1 -Task Build
+      - name: Smoke
+        id: smoke
+        run: |
+          ./build.ps1 -Task Smoke
+          # The audit runs native tools. The runner fails a step on the last exit code left behind, even though Smoke passed.
+          $global:LASTEXITCODE = 0
+
+      # Artifact names must be unique per matrix leg, and the results are needed most when a step failed.
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: testResults-${{ matrix.shell }}
+          path: out/testResults.xml
+
+      # One leg is enough: both build the same zip.
+      - name: Upload package
+        if: matrix.shell == 'pwsh'
+        uses: actions/upload-artifact@v7
+        with:
+          name: Chekap-package
+          path: out/Chekap-*.zip
+
+      # These are reports of the runner, not of a real PC: the only way to see why Smoke failed without a rerun.
+      - name: Upload smoke reports
+        if: failure() && steps.smoke.outcome == 'failure'
+        uses: actions/upload-artifact@v7
+        with:
+          name: smoke-${{ matrix.shell }}
+          path: out/smoke/

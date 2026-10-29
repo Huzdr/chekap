@@ -1,0 +1,56 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      # A step's if: cannot read secrets, and a job-level copy of the key would reach every step.
+      # So only this true/false flag is job-wide; the key itself is set on the publish step alone.
+      PUBLISH_TO_GALLERY: ${{ secrets.PSGALLERY_API_KEY != '' }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Bootstrap
+        run: ./build.ps1 -Task Bootstrap
+      - name: Test
+        run: ./build.ps1 -Task Test
+      - name: Build
+        run: ./build.ps1 -Task Build
+
+      # Nothing is released or published when the tag and the manifest disagree.
+      # Steps are separate processes: the version travels in GITHUB_ENV.
+      - name: Check tag against module version
+        run: |
+          $version = (Import-PowerShellDataFile -Path Chekap/Chekap.psd1).ModuleVersion
+          if ($env:GITHUB_REF_NAME -cne "v$version") { throw "Tag $env:GITHUB_REF_NAME does not match the manifest: expected v$version." }
+          Add-Content -Path $env:GITHUB_ENV -Value "CHEKAP_VERSION=$version"
+
+      - name: Release notes
+        run: |
+          $notes = ./tools/Get-ChangelogNotes.ps1 -Version $env:CHEKAP_VERSION
+          Set-Content -Path out/notes.md -Value $notes -Encoding utf8
+
+      # The exact zip path: pwsh does not expand a wildcard for a native command, gh would get the text out/Chekap-*.zip.
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create $env:GITHUB_REF_NAME "out/Chekap-$env:CHEKAP_VERSION.zip" --title "Chekap $env:CHEKAP_VERSION" --notes-file out/notes.md --verify-tag
+
+      - name: Publish to PowerShell Gallery
+        if: env.PUBLISH_TO_GALLERY == 'true'
+        env:
+          PSGALLERY_API_KEY: ${{ secrets.PSGALLERY_API_KEY }}
+        run: Publish-Module -Path out/Chekap -NuGetApiKey $env:PSGALLERY_API_KEY

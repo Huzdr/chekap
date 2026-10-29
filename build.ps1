@@ -41,6 +41,8 @@ foreach ($currentTask in $Task) {
     Write-Output "==> $currentTask"
     switch ($currentTask) {
         'Bootstrap' {
+            # PSGallery refuses anything older than TLS 1.2, and Windows PowerShell 5.1 may still offer less (older servers). Add it, do not replace.
+            if ($PSEdition -eq 'Desktop') { [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12 }
             if ($PSEdition -eq 'Desktop' -and -not (Get-PackageProvider -Name NuGet -ListAvailable -ErrorAction SilentlyContinue | Where-Object { $_.Version -ge [version]'2.8.5.201' })) {
                 Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Scope CurrentUser -Force | Out-Null
             }

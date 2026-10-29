@@ -270,3 +270,48 @@ Describe 'Start-Chekap.cmd launcher' {
         [System.IO.File]::ReadAllBytes((Join-Path $copy 'Start-Chekap.cmd')) | Should -Be $script:cmdBytes
     }
 }
+
+Describe 'GitHub workflows' {
+    BeforeAll {
+        $script:workflowFiles = @('ci.yml', 'release.yml') | ForEach-Object { Join-Path $script:root ".github/workflows/$_" }
+    }
+
+    It 'ci.yml and release.yml exist' {
+        @($script:workflowFiles | Where-Object { -not (Test-Path -LiteralPath $_ -PathType Leaf) }) | Should -BeNullOrEmpty
+    }
+
+    It 'are UTF-8 without a BOM' {
+        $bom = $script:workflowFiles | Where-Object {
+            $bytes = [System.IO.File]::ReadAllBytes($_)
+            $bytes.Length -ge 3 -and $bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF
+        }
+        $bom | Should -BeNullOrEmpty
+    }
+
+    It 'use one line-ending style and no tabs' {
+        $bad = $script:workflowFiles | Where-Object {
+            $text = [System.IO.File]::ReadAllText($_)
+            $mixed = [regex]::Matches($text, '\r\n').Count -gt 0 -and [regex]::Matches($text, '(?<!\r)\n').Count -gt 0
+            $mixed -or $text.Contains("`t")
+        }
+        $bad | Should -BeNullOrEmpty
+    }
+
+    It 'use only the GitHub-owned actions at their current major' {
+        $used = @(foreach ($file in $script:workflowFiles) {
+                foreach ($match in [regex]::Matches([System.IO.File]::ReadAllText($file), '(?m)^\s*(?:-\s+)?uses:\s*(\S+)')) { $match.Groups[1].Value }
+            })
+        $used | Should -Contain 'actions/checkout@v7'
+        @($used | Where-Object { $_ -cnotin 'actions/checkout@v7', 'actions/upload-artifact@v7' }) | Should -BeNullOrEmpty
+    }
+
+    It 'grant only the contents permission each needs and cap every job at 20 minutes' {
+        $permission = @{ 'ci.yml' = 'read'; 'release.yml' = 'write' }
+        $bad = foreach ($name in $permission.Keys) {
+            $text = [System.IO.File]::ReadAllText((Join-Path $script:root ".github/workflows/$name"))
+            if ($text -cnotmatch "(?m)^permissions:\r?\n  contents: $($permission[$name])\r?\n(?!  )") { "$name permissions" }
+            if ($text -cnotmatch '(?m)^    timeout-minutes: 20\r?$') { "$name timeout-minutes" }
+        }
+        $bad | Should -BeNullOrEmpty
+    }
+}
