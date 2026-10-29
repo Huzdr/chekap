@@ -21,13 +21,24 @@
         [hashtable]$SystemInfo
     )
 
+    # A failed write must stop the run with one clear error: without this a failing [IO.File] call only reports the error and the
+    # code after it (including the FileInfo of a file that was never written) still runs.
+    $ErrorActionPreference = 'Stop'
+
     # .NET resolves a relative path against the process folder, not against the PowerShell location.
     $folder = $PSCmdlet.SessionState.Path.GetUnresolvedProviderPathFromPSPath($OutputPath)
-    $null = New-Item -Path $folder -ItemType Directory -Force
+    # CreateDirectory, not New-Item -Force: New-Item stays silent when a file sits in the way of the path.
+    $null = [System.IO.Directory]::CreateDirectory($folder)
 
     $now = Get-Date
     $computer = @($SystemInfo.ComputerName, $Result[0].ComputerName, $env:COMPUTERNAME) | Where-Object { $_ } | Select-Object -First 1
     $baseName = 'Chekap-{0}-{1}' -f $computer, $now.ToString('yyyyMMdd-HHmm', [cultureinfo]::InvariantCulture)
+    # Never overwrite a report: if the html or the json of this minute exists, both files of this run take -2, -3, ...
+    $suffix = 1
+    while ((Test-Path -LiteralPath (Join-Path $folder "$baseName.html") -PathType Leaf) -or (Test-Path -LiteralPath (Join-Path $folder "$baseName.json") -PathType Leaf)) {
+        $suffix++
+        $baseName = 'Chekap-{0}-{1}-{2}' -f $computer, $now.ToString('yyyyMMdd-HHmm', [cultureinfo]::InvariantCulture), $suffix
+    }
 
     # Every value goes through the converter first: dates become ISO 8601 text and arrays stay arrays on both engines.
     $document = [ordered]@{

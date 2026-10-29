@@ -17,7 +17,8 @@
     .PARAMETER Language
     Language of the texts: uk or en. By default the saved setting or the system language.
     .PARAMETER OutputPath
-    Folder for the report files. It is created if it does not exist; a relative path is relative to the current location.
+    Folder for the report files. It is created if it does not exist, before the checks start; a relative path is relative to the current location.
+    A report is never overwritten: if the files of this minute already exist, the new ones get the suffix -2, -3 and so on.
     .PARAMETER Format
     File formats to write: Html, Json or both (the default).
     .PARAMETER Note
@@ -46,10 +47,20 @@
         [string]$Note
     )
 
+    # One clear terminating error for a bad folder or a failed write, like the runner does for its checks.
+    $ErrorActionPreference = 'Stop'
+
     $lang = Resolve-ChekapLanguage -Language $Language
     $checks = @(Select-ChekapCheck -Category $Category -CheckId $CheckId -Language $lang)
     # An unknown ID has already been reported by a warning; there is nothing to run and no report to write.
     if ($checks.Count -eq 0) { return }
+
+    if ($OutputPath) {
+        # A bad folder must fail now, not after the checks have run for several seconds.
+        $OutputPath = $PSCmdlet.SessionState.Path.GetUnresolvedProviderPathFromPSPath($OutputPath)
+        $null = [System.IO.Directory]::CreateDirectory($OutputPath)
+    }
+
     $results = @(Invoke-ChekapCheck -Check $checks -Language $lang)
 
     if ($OutputPath) {

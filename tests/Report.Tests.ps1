@@ -48,6 +48,24 @@
         }
         , @($files)
     }
+    # Runs code in a child session of the same engine, like a user typing the command: Pester wraps every test in try/catch, and a try/catch
+    # anywhere up the stack turns a statement-terminating error into a throw, which hides the very bug these tests guard against.
+    # Output lines come back as strings; the code under test prints a RESULT line that says what the failing call left behind.
+    $script:runPlain = {
+        param([string]$Body)
+        # The child's error text comes back through 2>&1; Pester's own Stop would turn it into an exception here.
+        $ErrorActionPreference = 'Continue'
+        $preamble = @'
+Import-Module '<PSD1>'
+$module = Get-Module Chekap
+$pc = 'PC-042'
+$result = & $module { param($PC) New-ChekapResult -Check @{ Id = 'NET-DNS-001'; Category = 'Network'; References = @('https://learn.microsoft.com/') } -Status OK -Title 'DNS' -Details 'fine' -ComputerName $PC } $pc
+function Export-Plain($Dir) { & $module { param($R, $D) Export-ChekapReport -Result @($R) -Language en -OutputPath $D -SystemInfo @{ ComputerName = 'PC-042' } } $result $Dir }
+'@
+        $code = $preamble.Replace('<PSD1>', $script:psd1) + "`n" + $Body
+        $encoded = [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($code))
+        @(& (Get-Process -Id $PID).Path -NoProfile -NonInteractive -OutputFormat Text -EncodedCommand $encoded 2>&1 | ForEach-Object { "$_" })
+    }
     $script:readText = { param($File) [System.IO.File]::ReadAllText($File.FullName, [System.Text.Encoding]::UTF8) }
     # The data block of an HTML report, parsed. Windows PowerShell 5.1 escapes more characters than 7, so tests compare parsed values.
     $script:readHtmlData = {
@@ -200,6 +218,67 @@ Describe 'Export-ChekapReport' {
     }
 }
 
+Describe 'Export-ChekapReport file names and write failures' {
+    BeforeEach {
+        Mock Get-Date { [datetime]'2026-03-10T12:00:00' } -ModuleName Chekap
+        $script:base = 'Chekap-PC-042-20260310-1200'
+    }
+
+    It 'never overwrites: a second run in the same minute takes -2 for both files' {
+        $dir = Join-Path $TestDrive 'twice'
+        $first = & $script:export $script:results $dir
+        $second = & $script:export $script:results $dir @{ Language = 'uk' }
+        @(Get-ChildItem -LiteralPath $dir -File).Count | Should -Be 4
+        ($first.Name | Sort-Object) -join ',' | Should -Be "$script:base.html,$script:base.json"
+        ($second.Name | Sort-Object) -join ',' | Should -Be "$script:base-2.html,$script:base-2.json"
+        # The first pair is untouched.
+        (Get-Content -LiteralPath (Join-Path $dir "$script:base.json") -Raw -Encoding UTF8 | ConvertFrom-Json).language | Should -Be 'en'
+        (Get-Content -LiteralPath (Join-Path $dir "$script:base-2.json") -Raw -Encoding UTF8 | ConvertFrom-Json).language | Should -Be 'uk'
+    }
+
+    It 'keeps counting: a third run takes -3' {
+        $dir = Join-Path $TestDrive 'thrice'
+        $null = & $script:export $script:results $dir
+        $null = & $script:export $script:results $dir
+        $third = & $script:export $script:results $dir
+        ($third.Name | Sort-Object) -join ',' | Should -Be "$script:base-3.html,$script:base-3.json"
+    }
+
+    It 'takes the suffix for both files when only the other format exists' {
+        $dir = Join-Path $TestDrive 'other-format'
+        $null = & $script:export $script:results $dir @{ Format = 'Json' }
+        $second = & $script:export $script:results $dir
+        ($second.Name | Sort-Object) -join ',' | Should -Be "$script:base-2.html,$script:base-2.json"
+    }
+
+    It 'a report that cannot be written gives one error and no file' {
+        $dir = Join-Path $TestDrive 'plain-blocked'
+        # A folder sits where the report file belongs (this minute and the next one): the name is free, but the write fails.
+        $body = @'
+$dir = '<DIR>'
+foreach ($minutes in 0, 1) { $null = New-Item -ItemType Directory -Path (Join-Path $dir ('Chekap-PC-042-{0}.html' -f (Get-Date).AddMinutes($minutes).ToString('yyyyMMdd-HHmm'))) -Force }
+$Error.Clear()
+$files = Export-Plain $dir
+'RESULT files={0} onDisk={1} errors={2}' -f @($files).Count, @(Get-ChildItem -LiteralPath $dir -File).Count, $Error.Count
+'@
+        $output = & $script:runPlain $body.Replace('<DIR>', $dir)
+        # No FileInfo for a file that was never written, no second file after the first one failed, and one error record, not a stack of them.
+        $output | Should -Contain 'RESULT files=0 onDisk=0 errors=1'
+    }
+
+    It 'an output folder that cannot be created gives one error and no file' {
+        $blocker = Join-Path $TestDrive 'plain-blocker'
+        Set-Content -LiteralPath $blocker -Value 'not a folder'
+        $body = @'
+$Error.Clear()
+$files = Export-Plain '<DIR>'
+'RESULT files={0} errors={1}' -f @($files).Count, $Error.Count
+'@
+        $output = & $script:runPlain $body.Replace('<DIR>', (Join-Path $blocker 'sub'))
+        $output | Should -Contain 'RESULT files=0 errors=1'
+    }
+}
+
 Describe 'report.html template' {
     BeforeAll {
         $script:templatePath = Join-Path $script:root 'Chekap/Templates/report.html'
@@ -224,6 +303,11 @@ Describe 'report.html template' {
     It 'puts data in the page only as text' {
         $script:template | Should -Not -Match 'innerHTML|outerHTML|insertAdjacentHTML|document\.write|eval\(|new Function'
         $script:template | Should -Match '/\^https\?:\\/\\//i'
+    }
+
+    It 'lets the passport labels size to their text' {
+        $script:template | Should -Not -Match 'flex:\s*0 0 8\.5rem'
+        $script:template | Should -Match 'grid-template-columns:\s*max-content'
     }
 
     It 'supports dark theme, print and phones' {
@@ -302,6 +386,8 @@ Describe 'Invoke-ChekapAudit' {
         Mock Invoke-ChekapCheck { $fixture }.GetNewClosure() -ModuleName Chekap
         Mock Get-ChekapSystemInfo { $system }.GetNewClosure() -ModuleName Chekap
         Mock Export-ChekapReport { New-Object System.IO.FileInfo 'C:\Reports\Chekap-PC-042-20260310-1200.html' } -ModuleName Chekap
+        # A new folder for every test: TestDrive keeps what an earlier test of this block created.
+        $script:out = Join-Path (Join-Path $TestDrive ([guid]::NewGuid().ToString())) 'reports'
     }
 
     It 'Invoke-ChekapAudit writes no files without -OutputPath' {
@@ -329,22 +415,42 @@ Describe 'Invoke-ChekapAudit' {
     }
 
     It 'passes everything to the report and returns the results' {
-        $result = @(Invoke-ChekapAudit -Language uk -CheckId 'NET-DNS-001' -OutputPath 'C:\Reports' -Format Html -Note 'Ticket 4711')
+        $result = @(Invoke-ChekapAudit -Language uk -CheckId 'NET-DNS-001' -OutputPath $script:out -Format Html -Note 'Ticket 4711')
         $result.Count | Should -Be 3
+        # The audit creates the folder itself, before the report is written.
+        Test-Path -LiteralPath $script:out -PathType Container | Should -BeTrue
         Should -Invoke Export-ChekapReport -ModuleName Chekap -Times 1 -Exactly -ParameterFilter {
-            $Language -eq 'uk' -and $OutputPath -eq 'C:\Reports' -and "$Format" -eq 'Html' -and $Note -eq 'Ticket 4711' -and $SystemInfo.ComputerName -eq 'PC-042' -and @($Result).Count -eq 3
+            $Language -eq 'uk' -and $OutputPath -like '*\reports' -and "$Format" -eq 'Html' -and $Note -eq 'Ticket 4711' -and $SystemInfo.ComputerName -eq 'PC-042' -and @($Result).Count -eq 3
         }
     }
 
     It 'reports every file path with -Verbose in the chosen language' {
-        $messages = Invoke-ChekapAudit -Language uk -CheckId 'NET-DNS-001' -OutputPath 'C:\Reports' -Verbose 4>&1 |
+        $messages = Invoke-ChekapAudit -Language uk -CheckId 'NET-DNS-001' -OutputPath $script:out -Verbose 4>&1 |
             Where-Object { $_ -is [System.Management.Automation.VerboseRecord] } | ForEach-Object { $_.Message }
         @($messages | Where-Object { $_ -match '[Ѐ-ӿ]' -and $_ -like '*Chekap-PC-042-20260310-1200.html' }).Count | Should -Be 1
     }
 
     It 'writes nothing and returns nothing when no check matches' {
-        $result = @(Invoke-ChekapAudit -Language en -CheckId 'NOPE-999' -OutputPath 'C:\Reports' -WarningAction SilentlyContinue)
+        $result = @(Invoke-ChekapAudit -Language en -CheckId 'NOPE-999' -OutputPath $script:out -WarningAction SilentlyContinue)
         $result.Count | Should -Be 0
+        Test-Path -LiteralPath $script:out | Should -BeFalse
+        Should -Invoke Invoke-ChekapCheck -ModuleName Chekap -Times 0 -Exactly
+        Should -Invoke Export-ChekapReport -ModuleName Chekap -Times 0 -Exactly
+    }
+
+    It 'creates the output folder before it runs the checks' {
+        $probe = @{}
+        $folder = $script:out
+        Mock Invoke-ChekapCheck { $probe.FolderExisted = Test-Path -LiteralPath $folder -PathType Container; $fixture }.GetNewClosure() -ModuleName Chekap
+        $null = Invoke-ChekapAudit -Language en -CheckId 'NET-DNS-001' -OutputPath $script:out
+        $probe.FolderExisted | Should -BeTrue
+    }
+
+    It 'fails before the checks run when the output folder cannot be created' {
+        # A file in the way: a folder cannot be created below it.
+        $blocker = Join-Path $TestDrive 'blocker'
+        Set-Content -LiteralPath $blocker -Value 'not a folder'
+        { Invoke-ChekapAudit -Language en -CheckId 'NET-DNS-001' -OutputPath (Join-Path $blocker 'sub') } | Should -Throw
         Should -Invoke Invoke-ChekapCheck -ModuleName Chekap -Times 0 -Exactly
         Should -Invoke Export-ChekapReport -ModuleName Chekap -Times 0 -Exactly
     }

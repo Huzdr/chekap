@@ -78,11 +78,19 @@ button { font: inherit; color: inherit; }
 /* Passport */
 .passport { margin-top: 28px; padding: 18px 20px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; }
 .passport h2 { font-size: 0.8rem; font-weight: 600; letter-spacing: 0.04em; color: var(--muted); margin-bottom: 10px; }
-.passport dl { display: grid; grid-template-columns: 1fr; gap: 8px 40px; }
-@media (min-width: 640px) { .passport dl { grid-template-columns: 1fr 1fr; } }
-.kv { display: flex; gap: 12px; min-width: 0; }
-.kv dt { flex: 0 0 8.5rem; color: var(--muted); }
-.kv dd { flex: 1 1 auto; min-width: 0; font-weight: 500; }
+/* A label never wraps: on a phone it sits above its value, wider up it takes the width of the longest label of its column. */
+.passport dt { color: var(--muted); font-size: 0.85rem; }
+.passport dd { min-width: 0; margin: 0 0 10px; font-weight: 500; }
+.passport dd:last-child { margin-bottom: 0; }
+@media (min-width: 560px) {
+  .passport dl { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 8px 16px; }
+  .passport dt { font-size: inherit; white-space: nowrap; }
+  .passport dd { margin: 0; }
+}
+@media (min-width: 860px) {
+  .passport dl { grid-template-columns: max-content minmax(0, 1fr) max-content minmax(0, 1fr); }
+  .passport dd:nth-of-type(odd) { margin-right: 24px; }
+}
 
 /* Filters */
 .filters { margin-top: 28px; display: grid; gap: 14px; }
@@ -271,10 +279,8 @@ button { font: inherit; color: inherit; }
     var list = el('dl');
     rows.forEach(function (row) {
       if (!has(row[1])) { return; }
-      var kv = el('div', 'kv');
-      kv.appendChild(el('dt', '', t(row[0])));
-      kv.appendChild(el('dd', '', String(row[1])));
-      list.appendChild(kv);
+      list.appendChild(el('dt', '', t(row[0])));
+      list.appendChild(el('dd', '', String(row[1])));
     });
     if (list.childNodes.length) {
       var passport = document.getElementById('passport');
