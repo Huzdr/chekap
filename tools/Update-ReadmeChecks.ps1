@@ -25,7 +25,7 @@ $end = '<!-- checks:end -->'
 # Import the module from this repository, whatever copy of Chekap the session already has.
 $null = Import-Module -Name (Join-Path $root 'Chekap/Chekap.psd1') -Force
 try {
-    # Both READMEs are prepared first and written after that: a problem in the second one must not leave the first one changed.
+    # Both READMEs are prepared first and written after that, so a problem in the text of the second one does not leave the first one changed; a failure while writing the second file can still leave the first one changed.
     $plans = foreach ($readme in $readmes) {
         $file = Join-Path $Path $readme.File
         $text = [System.IO.File]::ReadAllText($file, $utf8)

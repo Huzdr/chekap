@@ -8,6 +8,7 @@
         'https://learn.microsoft.com/powershell/module/printmanagement/get-printer'
     )
     # BudgetMs bounds the whole check: a power cut that takes down every printer must not cost one TimeoutMs per printer.
+    # The worst case is BudgetMs + TimeoutMs: the last probe may start just before the budget ends.
     Settings      = @{ TimeoutMs = 1000; BudgetMs = 8000 }
     Collect       = {
         param($Settings)
