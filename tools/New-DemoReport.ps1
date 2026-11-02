@@ -107,11 +107,8 @@ $notes = @{
 
 # The private helpers (the runner and the exporter) are reachable only from inside the module.
 $module = Import-Module -Name (Join-Path $root 'Chekap/Chekap.psd1') -Force -PassThru
-$savedCulture = [System.Threading.Thread]::CurrentThread.CurrentCulture
 try {
     $files = foreach ($language in 'uk', 'en') {
-        # Numbers in the texts follow the culture of the session: 2,1 GB would be wrong in an English report made on a Ukrainian PC.
-        [System.Threading.Thread]::CurrentThread.CurrentCulture = [System.Globalization.CultureInfo]::GetCultureInfo($(if ($language -eq 'uk') { 'uk-UA' } else { 'en-US' }))
         $folder = Join-Path $OutputPath $language
         $null = [System.IO.Directory]::CreateDirectory($folder)
         # A report is never overwritten, so an earlier demo report has to go first. Only its own files are removed.
@@ -135,7 +132,6 @@ try {
     }
 }
 finally {
-    [System.Threading.Thread]::CurrentThread.CurrentCulture = $savedCulture
     Remove-Module -Name Chekap -ErrorAction SilentlyContinue
 }
 $files

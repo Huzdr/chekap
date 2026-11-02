@@ -147,6 +147,58 @@ Describe 'System checks: Evaluate' {
     }
 }
 
+Describe 'System checks: numbers follow the report language, not the session culture' {
+    BeforeAll {
+        # 2.1 GB free with a 1.8 GB candidate: Evaluate pre-formats the candidate list and the text formats the numbers.
+        $script:diskCheck = $script:byId['SYS-DISK-001'].Clone()
+        $script:diskCheck.Collect = { @{ Drive = 'C:'; SizeBytes = [long]100GB; FreeBytes = [long](2.1 * 1GB); Candidates = @(@{ Path = 'C:\Temp-A'; Bytes = [long](1.8 * 1GB) }); OldProfiles = 2 } }
+        $script:runWithThreadCulture = {
+            param([string]$ThreadCulture, [string]$Language)
+            $saved = [System.Threading.Thread]::CurrentThread.CurrentCulture
+            try {
+                [System.Threading.Thread]::CurrentThread.CurrentCulture = [System.Globalization.CultureInfo]::GetCultureInfo($ThreadCulture)
+                InModuleScope Chekap -Parameters @{ C = $script:diskCheck; L = $Language } { @(Invoke-ChekapCheck -Check $C -Language $L)[0] }
+            }
+            finally {
+                [System.Threading.Thread]::CurrentThread.CurrentCulture = $saved
+            }
+        }
+    }
+
+    It 'an English report made on a Ukrainian session uses the decimal point' {
+        $result = & $script:runWithThreadCulture 'uk-UA' 'en'
+        $result.Status | Should -Be 'Critical'
+        $result.Details | Should -BeLike '*2.1 GB*'
+        $result.Details | Should -BeLike '*C:\Temp-A: 1.8*'
+        $result.Details | Should -Not -Match '\d,\d'
+    }
+
+    It 'a Ukrainian report made on an English session uses the decimal comma' {
+        $result = & $script:runWithThreadCulture 'en-US' 'uk'
+        $result.Details | Should -BeLike '*2,1 ГБ*'
+        $result.Details | Should -BeLike '*C:\Temp-A: 1,8*'
+        $result.Details | Should -Not -Match '\d\.\d'
+    }
+
+    It 'gives the session culture back when the check is done, also after a failure' {
+        $before = [System.Threading.Thread]::CurrentThread.CurrentCulture.Name
+        $null = & $script:runWithThreadCulture 'en-US' 'uk'
+        [System.Threading.Thread]::CurrentThread.CurrentCulture.Name | Should -Be $before
+        $broken = $script:diskCheck.Clone()
+        $broken.Evaluate = { throw 'boom' }
+        $saved = [System.Threading.Thread]::CurrentThread.CurrentCulture
+        try {
+            [System.Threading.Thread]::CurrentThread.CurrentCulture = [System.Globalization.CultureInfo]::GetCultureInfo('en-US')
+            $result = InModuleScope Chekap -Parameters @{ C = $broken } { @(Invoke-ChekapCheck -Check $C -Language uk)[0] }
+            $result.Status | Should -Be 'Error'
+            [System.Threading.Thread]::CurrentThread.CurrentCulture.Name | Should -Be 'en-US'
+        }
+        finally {
+            [System.Threading.Thread]::CurrentThread.CurrentCulture = $saved
+        }
+    }
+}
+
 Describe 'System checks: Collect' {
     It 'SYS-UPTIME-001 reads LastBoot and FastStartup' {
         Mock Get-CimInstance { [pscustomobject]@{ LastBootUpTime = [datetime]'2026-03-01T08:30:00' } } -ModuleName Chekap -ParameterFilter { $ClassName -eq 'Win32_OperatingSystem' }

@@ -15,6 +15,7 @@
     $ErrorActionPreference = 'Stop'
 
     $strings = Get-ChekapStringTable -Language $Language
+    $reportCulture = [System.Globalization.CultureInfo]::GetCultureInfo($(if ($Language -eq 'uk') { 'uk-UA' } else { 'en-US' }))
     $build = Get-ChekapOSBuild
 
     foreach ($item in $Check) {
@@ -51,16 +52,21 @@
             continue
         }
 
+        # Evaluate and the text are formatted in the report language (2.1 or 2,1), not in the culture of the session.
+        # Collect stays outside: it will run on the target machine.
+        $sessionCulture = [System.Threading.Thread]::CurrentThread.CurrentCulture
         try {
+            [System.Threading.Thread]::CurrentThread.CurrentCulture = $reportCulture
             # Built in full first: a bad verdict must not leave a half list of results.
             $verdicts = @(& $item.Evaluate $data $item.Settings | Where-Object { $null -ne $_ })
             $results = @(foreach ($verdict in $verdicts) {
                     $prefix = "$($item.Id).$($verdict.Message)"
                     $verdictArgs = @()
                     if ($null -ne $verdict.Args) { $verdictArgs = @($verdict.Args) }
+                    # Only a verdict that is OK may go without a Recommendation; for the others a missing key shows its name.
                     New-ChekapResult @base -Status $verdict.Status -Target $verdict.Target `
                         -Details (Get-ChekapText -Strings $strings -Key "$prefix.Details" -FormatArgs $verdictArgs) `
-                        -Recommendation (Get-ChekapText -Strings $strings -Key "$prefix.Recommendation" -Optional) `
+                        -Recommendation (Get-ChekapText -Strings $strings -Key "$prefix.Recommendation" -Optional:($verdict.Status -eq 'OK')) `
                         -Evidence $(if ($verdict.ContainsKey('Evidence')) { $verdict.Evidence } else { $data })
                 })
         }
@@ -70,6 +76,9 @@
                 -Details (Get-ChekapText -Strings $strings -Key 'Core.Error.Evaluate.Details' -FormatArgs $_.Exception.Message) `
                 -Recommendation (Get-ChekapText -Strings $strings -Key 'Core.Error.Recommendation')
             continue
+        }
+        finally {
+            [System.Threading.Thread]::CurrentThread.CurrentCulture = $sessionCulture
         }
         # A check that says nothing must not vanish from the report.
         if ($results.Count -eq 0) {

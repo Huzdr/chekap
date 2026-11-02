@@ -247,6 +247,15 @@ Describe 'Invoke-ChekapCheck' {
         }
     }
 
+    It 'a verdict that is not OK and has no Recommendation key shows the key name, like a missing Details' -ForEach @('Warning', 'Critical', 'Skipped') {
+        $check = & $script:newCheck 'TST-001' 'System' $script:okCollect ([scriptblock]::Create("@{ Status = '$_'; Message = 'Plain' }"))
+        InModuleScope Chekap -Parameters @{ C = $check } {
+            $r = @(Invoke-ChekapCheck -Check $C -Language en)
+            $r[0].Details | Should -Be 'Plain'
+            $r[0].Recommendation | Should -Be 'TST-001.Plain.Recommendation'
+        }
+    }
+
     It 'formats a single falsy argument' {
         $check = & $script:newCheck 'TST-001' 'System' $script:okCollect { @{ Status = 'OK'; Message = 'Ok'; Args = @(0) } }
         InModuleScope Chekap -Parameters @{ C = $check } {
