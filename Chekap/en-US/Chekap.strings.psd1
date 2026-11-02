@@ -126,9 +126,9 @@
 
     # NET-PROFILE-001
     'NET-PROFILE-001.Title' = 'Network profile'
-    'NET-PROFILE-001.Ok.Details' = 'The network profile is {0}.'
-    'NET-PROFILE-001.OkPrivate.Details' = 'The network profile is Private network.'
-    'NET-PROFILE-001.OkDomain.Details' = 'The network profile is Domain network.'
+    'NET-PROFILE-001.Ok.Details' = 'Network profile: {0}.'
+    'NET-PROFILE-001.OkPrivate.Details' = 'Network profile: Private network.'
+    'NET-PROFILE-001.OkDomain.Details' = 'Network profile: Domain network.'
     'NET-PROFILE-001.NoProfile.Details' = 'Windows reports no active network connection, so there is no network profile to check.'
     'NET-PROFILE-001.NoProfile.Recommendation' = 'Connect the PC to a network (check NET-ADAPTER-001). If it is connected, make sure the services Network List Service (netprofm) and Network Location Awareness (NlaSvc) are running, then run the check again.'
     'NET-PROFILE-001.Public.Details' = 'The network "{0}" has the Public profile. On a Public network Windows blocks file and printer sharing and network discovery, so shared folders and printers may be unreachable.'
