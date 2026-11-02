@@ -42,7 +42,7 @@ Get-ChekapCheck -Category Printing -Language uk
 ## PARAMETERS
 
 ### -Category
-Лише перевірки цих категорій: System (стан ПК), Network (мережа) або Printing (друк). Можна вказати кілька. Назва, якої немає серед категорій, нічого не поверне.
+Лише перевірки цих категорій: System (стан ПК), Network (мережа) або Printing (друк). Можна вказати кілька. Будь-яку іншу назву команда відхилить.
 
 ```yaml
 Type: String[]

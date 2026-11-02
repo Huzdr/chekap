@@ -418,6 +418,12 @@ Describe 'Get-ChekapCheck' {
         $info.Count | Should -Be 1
         $info[0].Id | Should -Be 'TST-003'
     }
+
+    It 'refuses a category that does not exist, as Invoke-ChekapAudit does' {
+        { Get-ChekapCheck -Category 'Printin' -Language en } | Should -Throw '*Printin*'
+        { Get-ChekapCheck -Category 'System', 'Bogus' -Language en } | Should -Throw
+        { Get-ChekapCheck -Category 'System', 'Printing' -Language en } | Should -Not -Throw
+    }
 }
 
 Describe 'Loading the module from a folder with [brackets] in its path' {

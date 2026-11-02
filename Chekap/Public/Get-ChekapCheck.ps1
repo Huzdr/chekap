@@ -3,6 +3,7 @@
     [CmdletBinding()]
     [OutputType('Chekap.CheckInfo')]
     param(
+        [ValidateSet('System', 'Network', 'Printing')]
         [string[]]$Category,
 
         [ValidateSet('uk', 'en')]

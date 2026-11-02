@@ -42,7 +42,7 @@ Shows only the Printing checks, with titles in Ukrainian.
 ## PARAMETERS
 
 ### -Category
-Only the checks of these categories: System, Network or Printing. You can give several. A name that matches no category returns nothing.
+Only the checks of these categories: System, Network or Printing. You can give several. Any other name is refused.
 
 ```yaml
 Type: String[]
