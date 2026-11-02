@@ -17,7 +17,7 @@ Start-Chekap [<CommonParameters>]
 ```
 
 ## DESCRIPTION
-Shows a numbered menu in the PowerShell window: 1 all checks, 2 System: PC health, 3 Network, 4 Printing, 5 all checks and a report file (HTML and JSON), 6 switch between Ukrainian and English, 0 exit. After a run the menu prints the number of findings for each status and then every finding that is not OK, the most serious first, with its status label, what was found and the recommendation. Press Enter to go back to the menu.
+Shows a numbered menu in the PowerShell window: 1 all checks, 2 System: PC health, 3 Network, 4 Printing, 5 all checks and a report file (HTML and JSON), 6 switch between Ukrainian and English, 0 exit. After a run the menu prints the number of findings for each status and then every finding that is not OK, the most serious first, with its status label, what was found and the recommendation. A recommendation is a concrete action, not general advice. Press Enter to go back to the menu.
 
 Item 5 saves the report to the Chekap folder inside your Documents folder, never overwriting an earlier report, and opens the HTML file in the default browser. Item 6 saves the chosen language with Set-ChekapConfig, so the next start uses it. At the start the menu uses the saved language or, without one, the language of the Windows interface.
 

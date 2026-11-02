@@ -43,7 +43,7 @@
     'Report.Filter.All'                    = 'All'
     'Report.Filter.Status'                 = 'Status'
     'Report.Filter.Category'               = 'Category'
-    'Report.Target'                        = 'Object'
+    'Report.Target'                        = 'Affected item'
     'Report.Recommendation'                = 'What to do'
     'Report.References'                    = 'Learn more'
     'Report.Evidence'                      = 'Collected data'
@@ -112,7 +112,7 @@
     'NET-GATEWAY-001.Title' = 'Default gateway'
     'NET-GATEWAY-001.Ok.Details' = 'The gateway {0} answers ping in {1} ms.'
     'NET-GATEWAY-001.NoGateway.Details' = 'No default gateway is set, so this PC can reach only its own subnet.'
-    'NET-GATEWAY-001.NoGateway.Recommendation' = 'If the address comes from DHCP, run "ipconfig /renew" and check that the DHCP server hands out the gateway (router) option. For a static address, enter the address of the router as the default gateway in the IPv4 properties of the adapter.'
+    'NET-GATEWAY-001.NoGateway.Recommendation' = 'If the address comes from DHCP, run "ipconfig /renew" and check that the DHCP server hands out the gateway (router) option. For a static address, enter the address of the router as the default gateway in the IPv4 properties of the adapter. On an isolated subnet with no router this is normal.'
     'NET-GATEWAY-001.Multiple.Details' = 'Default gateways are set on more than one adapter: {0}. Windows uses the route with the lowest metric, so traffic may go through the wrong network.'
     'NET-GATEWAY-001.Multiple.Recommendation' = 'If a VPN is connected, this is normal. Otherwise disable the adapter you do not need (for example Wi-Fi while the cable is plugged in) or remove the gateway from the adapter that must not carry internet traffic. The order of the routes is shown by "Get-NetRoute -DestinationPrefix 0.0.0.0/0".'
     'NET-GATEWAY-001.NoReply.Details' = 'The gateway {0} does not answer ping.'
@@ -136,7 +136,7 @@
 
     # NET-PROXY-001
     'NET-PROXY-001.Title' = 'Proxy server'
-    'NET-PROXY-001.Direct.Details' = 'No proxy server is set. The PC connects to the internet directly.'
+    'NET-PROXY-001.Direct.Details' = 'No proxy server and no configuration script are set, so the PC connects directly unless the network sets a proxy automatically (WPAD).'
     'NET-PROXY-001.Pac.Details' = 'The PC takes its proxy settings from the configuration script {0}.'
     'NET-PROXY-001.Proxy.Details' = 'The proxy server {0} answers.'
     'NET-PROXY-001.ProxyDown.Details' = 'The proxy server {0} does not answer, so programs that use it cannot reach the internet.'
@@ -247,7 +247,7 @@
     'SYS-APPCRASH-001.Title' = 'Application crashes'
     'SYS-APPCRASH-001.Ok.Details' = 'Application crashes in the last {1} days: {0}. No application crashed repeatedly. Stability index: {2:N1}.'
     'SYS-APPCRASH-001.OkNoIndex.Details' = 'Application crashes in the last {1} days: {0}. No application crashed repeatedly.'
-    'SYS-APPCRASH-001.Crashing.Details' = 'In the last {1} days these applications crashed repeatedly: {0}.'
+    'SYS-APPCRASH-001.Crashing.Details' = 'In the last {1} days these applications crashed repeatedly (number of crashes in brackets): {0}.'
     'SYS-APPCRASH-001.Crashing.Recommendation' = 'Update or reinstall the listed applications. Open Event Viewer (eventvwr.msc) > Windows Logs > Application, find the Application Error events (ID 1000), note the faulting module, and look for a fix on the vendor''s site.'
 
     # SYS-BATTERY-001
@@ -297,7 +297,7 @@
     'SYS-PERF-001.Ok.Details' = 'CPU load is {0:N0}%. Top processes by CPU (%): {1}. Top processes by memory (MB): {2}.'
     'SYS-PERF-001.HighCpu.Details' = 'CPU load is {0:N0}%. Heaviest processes by CPU (%): {1}.'
     'SYS-PERF-001.NoCounters.Details' = 'The performance counters (WMI classes Win32_PerfFormattedData) are missing or damaged on this PC, so the load of the CPU and of the processes cannot be measured.'
-    'SYS-PERF-001.NoCounters.Recommendation' = 'Rebuild the performance counters: in PowerShell as administrator run lodctr /R and then winmgmt /resyncperf, restart the PC and run the check again.'
+    'SYS-PERF-001.NoCounters.Recommendation' = 'Rebuild the performance counters: in PowerShell as administrator run "lodctr /R" and then "winmgmt /resyncperf", restart the PC and run the check again.'
     'SYS-PERF-001.HighCpu.Recommendation' = 'Check whether the load is expected: a scan, an update or a backup can load the CPU for a while. If it stays high, restart or update the heaviest application and scan the PC for malware.'
 
     # SYS-REBOOT-001
@@ -318,11 +318,11 @@
     'SYS-STARTUP-001.Title' = 'Startup programs'
     'SYS-STARTUP-001.Ok.Details' = 'Programs that start with Windows: {0}.'
     'SYS-STARTUP-001.Many.Details' = 'Too many programs start with Windows: {0}. The first ones: {1}.'
-    'SYS-STARTUP-001.Many.Recommendation' = 'Open Task Manager (Ctrl+Shift+Esc), go to the startup apps and turn off what is not needed at sign-in (updaters, helpers, trial software). The PC will start faster and use less memory.'
+    'SYS-STARTUP-001.Many.Recommendation' = 'Start Task Manager (Ctrl+Shift+Esc), open the Startup apps tab (or Settings > Apps > Startup) and turn off what is not needed at sign-in (updaters, helpers, trial software). The PC will start faster and use less memory.'
 
     # SYS-UPTIME-001
     'SYS-UPTIME-001.Title' = 'Uptime'
-    'SYS-UPTIME-001.Ok.Details' = 'The PC has been running for {0} days since the last restart.'
+    'SYS-UPTIME-001.Ok.Details' = 'Days since the last restart: {0}.'
     'SYS-UPTIME-001.Long.Details' = 'The PC has not been restarted for {0} days.'
     'SYS-UPTIME-001.Long.Recommendation' = 'Restart the PC to apply pending updates and to free memory held by programs that have been running for a long time.'
     'SYS-UPTIME-001.LongFastStartup.Details' = 'The PC has not been restarted for {0} days. Fast Startup is on, so Shut down does not reset the uptime.'

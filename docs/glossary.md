@@ -14,7 +14,7 @@ The Ukrainian column is the form as it stands in the Ukrainian texts, so a noun 
 |---|---|---|
 | check | перевірка | all checks, menu |
 | finding | знахідка | help (`docs/uk`), reports |
-| what to do (recommendation) | Що робити | `Report.Recommendation` |
+| recommendation | рекомендація | in the prose of the texts; the heading in the report and the menu is «Що робити» (`Report.Recommendation`) |
 | collected data (evidence) | Зібрані дані | `Report.Evidence` |
 | object (target) | Об'єкт | `Report.Target` |
 | learn more (references) | Докладніше | `Report.References` |
@@ -32,14 +32,14 @@ The Ukrainian column is the form as it stands in the Ukrainian texts, so a noun 
 | administrator rights | права адміністратора | `Core.Skipped.NotAdmin.*` |
 | uptime | Час безперервної роботи | `SYS-UPTIME-001.Title` |
 | pending restart | Очікуване перезавантаження | `SYS-REBOOT-001.Title` |
-| Fast Startup | швидкий запуск | `SYS-UPTIME-001.LongFastStartup.*` |
-| page file | файл підкачки | `SYS-MEMORY-001.Title` |
+| Fast Startup | швидке завантаження | `SYS-UPTIME-001.LongFastStartup.*` |
+| page file | файл довантаження | `SYS-MEMORY-001.Title` |
 | application crashes | Збої програм | `SYS-APPCRASH-001.Title` |
 | blue screen crashes | Аварії із синім екраном | `SYS-BSOD-001.Title` |
 | unexpected shutdowns | Аварійні вимкнення | `SYS-SHUTDOWN-001.Title` |
-| startup programs | Програми в автозапуску | `SYS-STARTUP-001.Title` |
+| startup programs | Програми автозавантаження | `SYS-STARTUP-001.Title` |
 | network adapter | Мережевий адаптер | `NET-ADAPTER-001.Title` |
-| default gateway | Шлюз за замовчуванням | `NET-GATEWAY-001.Title` |
+| default gateway | Основний шлюз | `NET-GATEWAY-001.Title` |
 | DNS server | DNS-сервер | `NET-DNS-001.*` |
 | name resolution | Перетворення імен | `NET-DNS-002.Title` |
 | proxy server | Проксі-сервер | `NET-PROXY-001.Title` |

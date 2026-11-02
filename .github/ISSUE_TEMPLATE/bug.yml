@@ -1,5 +1,5 @@
 name: Bug report / Повідомлення про помилку
-description: Chekap fails, or a finding is wrong / Chekap не працює або знахідка хибна
+description: Chekap fails, or a finding is wrong / Chekap не працює або знахідка помилкова
 title: "[Bug]: "
 labels:
   - bug

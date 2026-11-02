@@ -82,6 +82,7 @@ Start from this real check. Copy it and change it:
 - **Every verdict is a hashtable literal** with a literal `Status` (`OK`, `Warning`, `Critical` or `Skipped`) and a literal `Message`. Optional keys: `Args` (values for `{0}`, `{1}` in the text), `Target` (the object the finding is about, such as `D:` or a printer name) and `Evidence` (the data to show; without it the whole `Collect` result is shown). `Evaluate` may return several verdicts, for example one for each printer. `Error` is not a verdict: it is what the core reports when a block throws.
 - **A block declares only the parameters it uses:** `param($Settings)` in `Collect`, `param($Data)` or `param($Data, $Settings)` in `Evaluate`.
 - **Thresholds go to `Settings`**, not into the code of `Evaluate`.
+- **The code of a check is ASCII only.** A dash for "no data", a multiplication sign or any other glyph that the user sees belongs in the string tables, as a message of its own; a test fails on a character above 127 in `Chekap/**/*.ps1`.
 - **`References` has at least one `https://` link** to the Microsoft documentation or another authoritative source.
 - **Syntax of Windows PowerShell 5.1 only:** no `??`, `?:`, `?.`, `&&`, `||` and no `ForEach-Object -Parallel`. No `Invoke-Expression`, no `Win32_Product`, no other modules.
 - **A check only reads.** Anything that changes the PC does not belong in version 0.1.
@@ -95,7 +96,7 @@ The texts are never in the code. Add the keys to `Chekap/en-US/Chekap.strings.ps
 |---|---|
 | `<Id>.Title` | The name of the check |
 | `<Id>.<Message>.Details` | What was found, for every `Message` of the check |
-| `<Id>.<Message>.Recommendation` | What to do. Required for every `Message` that is not `OK` |
+| `<Id>.<Message>.Recommendation` | What to do. Required when the Status of the verdict is not `OK` |
 
 An excerpt of the English table for the check above (the real table also has the keys for `Ok` and `LongFastStartup`):
 
