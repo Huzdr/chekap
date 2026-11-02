@@ -21,6 +21,14 @@ Describe 'Repository hygiene' {
         $hits | Should -BeNullOrEmpty
     }
 
+    It 'module code is ASCII only after the BOM (no dash, multiplication sign or other glyph in a check)' {
+        $nonAscii = $script:scripts | Where-Object { $_.Extension -in '.ps1', '.psm1' -and $_.FullName.StartsWith((Join-Path $script:root 'Chekap')) } | Where-Object {
+            $bytes = [System.IO.File]::ReadAllBytes($_.FullName)
+            @($bytes | Select-Object -Skip 3 | Where-Object { $_ -ge 0x80 }).Count -gt 0
+        } | ForEach-Object { $_.FullName.Substring($script:root.Length + 1) }
+        $nonAscii | Should -BeNullOrEmpty
+    }
+
     It 'manifest is valid' {
         { Test-ModuleManifest -Path $script:manifest -ErrorAction Stop } | Should -Not -Throw
     }

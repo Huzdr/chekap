@@ -31,14 +31,19 @@
         param($Data, $Settings)
         $freeGB = $Data.FreeBytes / 1GB
         $freePercent = 100 * $Data.FreeBytes / $Data.SizeBytes
-        # "path: size in GB", biggest first; the unit is in the message text.
+        # "path: size in GB", biggest first; the unit is in the message text. Without any folder the *NoFolders messages have no place for the list.
         $candidates = @($Data.Candidates | Sort-Object -Property { $_.Bytes } -Descending | ForEach-Object { '{0}: {1:N1}' -f $_.Path, ($_.Bytes / 1GB) }) -join '; '
-        if (-not $candidates) { $candidates = '—' }
-        if ($freeGB -lt $Settings.CriticalGB) {
+        if ($freeGB -lt $Settings.CriticalGB -and $candidates) {
             @{ Status = 'Critical'; Message = 'CriticalLow'; Target = $Data.Drive; Args = @($freeGB, $freePercent, $candidates, $Data.OldProfiles) }
         }
-        elseif ($freeGB -lt $Settings.WarnGB -or $freePercent -lt $Settings.WarnPercent) {
+        elseif ($freeGB -lt $Settings.CriticalGB) {
+            @{ Status = 'Critical'; Message = 'CriticalLowNoFolders'; Target = $Data.Drive; Args = @($freeGB, $freePercent, $Data.OldProfiles) }
+        }
+        elseif (($freeGB -lt $Settings.WarnGB -or $freePercent -lt $Settings.WarnPercent) -and $candidates) {
             @{ Status = 'Warning'; Message = 'Low'; Target = $Data.Drive; Args = @($freeGB, $freePercent, $candidates, $Data.OldProfiles) }
+        }
+        elseif ($freeGB -lt $Settings.WarnGB -or $freePercent -lt $Settings.WarnPercent) {
+            @{ Status = 'Warning'; Message = 'LowNoFolders'; Target = $Data.Drive; Args = @($freeGB, $freePercent, $Data.OldProfiles) }
         }
         else {
             @{ Status = 'OK'; Message = 'Ok'; Target = $Data.Drive; Args = @($freeGB, $freePercent) }

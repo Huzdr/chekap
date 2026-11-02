@@ -29,13 +29,14 @@
         $repeated = @($Data.Crashes | Group-Object | Where-Object { $_.Count -ge $Settings.WarnPerApp } |
                 Sort-Object -Property @{ Expression = { $_.Count }; Descending = $true }, @{ Expression = { $_.Name } })
         if ($repeated.Count -gt 0) {
-            $apps = @($repeated | ForEach-Object { '{0} ×{1}' -f $_.Name, $_.Count }) -join ', '
+            $apps = @($repeated | ForEach-Object { '{0} ({1})' -f $_.Name, $_.Count }) -join ', '
             @{ Status = 'Warning'; Message = 'Crashing'; Args = @($apps, $Settings.Days) }
         }
+        elseif ($null -eq $Data.StabilityIndex) {
+            @{ Status = 'OK'; Message = 'OkNoIndex'; Args = @(@($Data.Crashes).Count, $Settings.Days) }
+        }
         else {
-            $index = '—'
-            if ($null -ne $Data.StabilityIndex) { $index = [math]::Round($Data.StabilityIndex, 1) }
-            @{ Status = 'OK'; Message = 'Ok'; Args = @(@($Data.Crashes).Count, $Settings.Days, $index) }
+            @{ Status = 'OK'; Message = 'Ok'; Args = @(@($Data.Crashes).Count, $Settings.Days, [math]::Round($Data.StabilityIndex, 1)) }
         }
     }
 }

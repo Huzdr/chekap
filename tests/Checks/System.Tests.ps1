@@ -37,10 +37,10 @@
         @{ Id = 'SYS-REBOOT-001'; Name = 'all three sources are listed in order'; Data = @{ WindowsUpdate = $true; Cbs = $true; FileRenameCount = 2 }; Expect = @(@{ Status = 'Warning'; Message = 'Pending'; Args = @('Windows Update, CBS, PendingFileRenameOperations') }) }
 
         @{ Id = 'SYS-DISK-001'; Name = 'plenty of space is OK'; Data = @{ Drive = 'C:'; SizeBytes = 100GB; FreeBytes = 60GB; Candidates = @(); OldProfiles = 0 }; Expect = @(@{ Status = 'OK'; Message = 'Ok'; Target = 'C:'; Args = @(60, 60) }) }
-        @{ Id = 'SYS-DISK-001'; Name = 'under WarnGB is Low'; Data = @{ Drive = 'C:'; SizeBytes = 100GB; FreeBytes = 12GB; Candidates = @(); OldProfiles = 0 }; Expect = @(@{ Status = 'Warning'; Message = 'Low'; Target = 'C:'; Args = @(12, 12, [string][char]0x2014, 0) }) }
-        @{ Id = 'SYS-DISK-001'; Name = 'under WarnPercent on a big disk is Low'; Data = @{ Drive = 'D:'; SizeBytes = 1000GB; FreeBytes = 90GB; Candidates = @(); OldProfiles = 0 }; Expect = @(@{ Status = 'Warning'; Message = 'Low'; Target = 'D:' }) }
-        @{ Id = 'SYS-DISK-001'; Name = 'exactly CriticalGB is still Low'; Data = @{ Drive = 'C:'; SizeBytes = 100GB; FreeBytes = 5GB; Candidates = @(); OldProfiles = 0 }; Expect = @(@{ Status = 'Warning'; Message = 'Low'; Target = 'C:' }) }
-        @{ Id = 'SYS-DISK-001'; Name = 'under CriticalGB is CriticalLow'; Data = @{ Drive = 'C:'; SizeBytes = 100GB; FreeBytes = 4GB; Candidates = @(); OldProfiles = 0 }; Expect = @(@{ Status = 'Critical'; Message = 'CriticalLow'; Target = 'C:' }) }
+        @{ Id = 'SYS-DISK-001'; Name = 'under WarnGB with no candidate folders is LowNoFolders, without a placeholder for the list'; Data = @{ Drive = 'C:'; SizeBytes = 100GB; FreeBytes = 12GB; Candidates = @(); OldProfiles = 3 }; Expect = @(@{ Status = 'Warning'; Message = 'LowNoFolders'; Target = 'C:'; Args = @(12, 12, 3) }) }
+        @{ Id = 'SYS-DISK-001'; Name = 'under WarnPercent on a big disk is Low'; Data = @{ Drive = 'D:'; SizeBytes = 1000GB; FreeBytes = 90GB; Candidates = @(@{ Path = 'D:\Temp-A'; Bytes = 2GB }); OldProfiles = 0 }; Expect = @(@{ Status = 'Warning'; Message = 'Low'; Target = 'D:' }) }
+        @{ Id = 'SYS-DISK-001'; Name = 'exactly CriticalGB is still Low'; Data = @{ Drive = 'C:'; SizeBytes = 100GB; FreeBytes = 5GB; Candidates = @(@{ Path = 'C:\Temp-A'; Bytes = 2GB }); OldProfiles = 0 }; Expect = @(@{ Status = 'Warning'; Message = 'Low'; Target = 'C:' }) }
+        @{ Id = 'SYS-DISK-001'; Name = 'under CriticalGB with no candidate folders is CriticalLowNoFolders'; Data = @{ Drive = 'C:'; SizeBytes = 100GB; FreeBytes = 4GB; Candidates = @(); OldProfiles = 1 }; Expect = @(@{ Status = 'Critical'; Message = 'CriticalLowNoFolders'; Target = 'C:'; Args = @(4, 4, 1) }) }
         @{
             Id = 'SYS-DISK-001'; Name = 'candidates are listed biggest first, then the old profile count'
             Data = @{ Drive = 'C:'; SizeBytes = 100GB; FreeBytes = 4GB; OldProfiles = 2; Candidates = @(@{ Path = 'C:\Temp-A'; Bytes = 1GB }, @{ Path = 'C:\Temp-B'; Bytes = 3GB }) }
@@ -65,8 +65,8 @@
         @{ Id = 'SYS-MEMORY-001'; Name = 'high commit is CommitHigh'; Data = (& $memory 16777216 8388608 25165824 1048576 4096); Expect = @(@{ Status = 'Critical'; Message = 'CommitHigh' }) }
         @{ Id = 'SYS-MEMORY-001'; Name = 'exactly CriticalCommitPercent is CommitHigh'; Data = (& $memory 10000 5000 10000 1000 4096); Expect = @(@{ Status = 'Critical'; Message = 'CommitHigh'; Args = @(90) }) }
         @{ Id = 'SYS-MEMORY-001'; Name = 'commit beats low RAM: one memory verdict'; Data = (& $memory 16777216 1048576 25165824 1048576 4096); Expect = @(@{ Status = 'Critical'; Message = 'CommitHigh' }) }
-        @{ Id = 'SYS-MEMORY-001'; Name = 'no page file adds NoPagefile after the memory verdict'; Data = (& $memory 16777216 8388608 16777216 8388608 0); Expect = @(@{ Status = 'OK'; Message = 'Ok' }, @{ Status = 'Warning'; Message = 'NoPagefile'; Target = 'pagefile' }) }
-        @{ Id = 'SYS-MEMORY-001'; Name = 'no page file next to a memory problem gives both'; Data = (& $memory 16777216 1048576 16777216 1048576 0); Expect = @(@{ Status = 'Critical'; Message = 'CommitHigh' }, @{ Status = 'Warning'; Message = 'NoPagefile'; Target = 'pagefile' }) }
+        @{ Id = 'SYS-MEMORY-001'; Name = 'no page file adds NoPagefile after the memory verdict'; Data = (& $memory 16777216 8388608 16777216 8388608 0); Expect = @(@{ Status = 'OK'; Message = 'Ok' }, @{ Status = 'Warning'; Message = 'NoPagefile'; Target = $null }) }
+        @{ Id = 'SYS-MEMORY-001'; Name = 'no page file next to a memory problem gives both'; Data = (& $memory 16777216 1048576 16777216 1048576 0); Expect = @(@{ Status = 'Critical'; Message = 'CommitHigh' }, @{ Status = 'Warning'; Message = 'NoPagefile'; Target = $null }) }
 
         @{ Id = 'SYS-BSOD-001'; Name = 'no events is OK'; Data = @{ Events = @(); MinidumpCount = $null }; Expect = @(@{ Status = 'OK'; Message = 'Ok'; Args = @(30) }) }
         @{ Id = 'SYS-BSOD-001'; Name = 'one crash is Crashes with the short stop code'; Data = @{ Events = @(& $crash 2 '0x000000d1 (0x1, 0x2, 0x0, 0x3)'); MinidumpCount = 1 }; Expect = @(@{ Status = 'Warning'; Message = 'Crashes'; Args = @(1, 30, $now.AddDays(-2), '0x000000d1') }) }
@@ -78,10 +78,10 @@
         @{ Id = 'SYS-SHUTDOWN-001'; Name = 'one event is Unexpected'; Data = @{ KernelPower41 = @($now.AddDays(-6)); EventLog6008 = @() }; Expect = @(@{ Status = 'Warning'; Message = 'Unexpected'; Args = @(1, 30, $now.AddDays(-6)) }) }
         @{ Id = 'SYS-SHUTDOWN-001'; Name = 'CriticalCount reached is Frequent, latest date from both lists'; Data = @{ KernelPower41 = @($now.AddDays(-1)); EventLog6008 = @($now.AddDays(-10), $now.AddDays(-12), $now.AddDays(-14)) }; Expect = @(@{ Status = 'Critical'; Message = 'Frequent'; Args = @(3, 30, $now.AddDays(-1)) }) }
 
-        @{ Id = 'SYS-APPCRASH-001'; Name = 'no crashes and no stability index is OK with a dash'; Data = @{ Crashes = @(); StabilityIndex = $null }; Expect = @(@{ Status = 'OK'; Message = 'Ok'; Args = @(0, 7, [string][char]0x2014) }) }
+        @{ Id = 'SYS-APPCRASH-001'; Name = 'no crashes and no stability index is OkNoIndex, without a placeholder for the index'; Data = @{ Crashes = @(); StabilityIndex = $null }; Expect = @(@{ Status = 'OK'; Message = 'OkNoIndex'; Args = @(0, 7) }) }
         @{ Id = 'SYS-APPCRASH-001'; Name = 'crashes below WarnPerApp are OK with the index'; Data = @{ Crashes = @('a.exe', 'a.exe', 'b.exe', 'b.exe'); StabilityIndex = 8.5 }; Expect = @(@{ Status = 'OK'; Message = 'Ok'; Args = @(4, 7, 8.5) }) }
-        @{ Id = 'SYS-APPCRASH-001'; Name = 'apps at WarnPerApp are Crashing, most crashes first'; Data = @{ Crashes = @('contoso.exe', 'a.exe', 'b.exe', 'contoso.exe', 'b.exe', 'b.exe', 'contoso.exe', 'b.exe'); StabilityIndex = $null }; Expect = @(@{ Status = 'Warning'; Message = 'Crashing'; Args = @(('b.exe {0}4, contoso.exe {0}3' -f [char]0x00D7), 7) }) }
-        @{ Id = 'SYS-APPCRASH-001'; Name = 'exe names differing in case count as one app'; Data = @{ Crashes = @('App.exe', 'app.exe', 'APP.EXE'); StabilityIndex = 9 }; Expect = @(@{ Status = 'Warning'; Message = 'Crashing'; Args = @(('App.exe {0}3' -f [char]0x00D7), 7) }) }
+        @{ Id = 'SYS-APPCRASH-001'; Name = 'apps at WarnPerApp are Crashing, most crashes first'; Data = @{ Crashes = @('contoso.exe', 'a.exe', 'b.exe', 'contoso.exe', 'b.exe', 'b.exe', 'contoso.exe', 'b.exe'); StabilityIndex = $null }; Expect = @(@{ Status = 'Warning'; Message = 'Crashing'; Args = @('b.exe (4), contoso.exe (3)', 7) }) }
+        @{ Id = 'SYS-APPCRASH-001'; Name = 'exe names differing in case count as one app'; Data = @{ Crashes = @('App.exe', 'app.exe', 'APP.EXE'); StabilityIndex = 9 }; Expect = @(@{ Status = 'Warning'; Message = 'Crashing'; Args = @('App.exe (3)', 7) }) }
 
         @{ Id = 'SYS-BATTERY-001'; Name = 'no battery is Skipped'; Data = @{ HasBattery = $false; Batteries = @() }; Expect = @(@{ Status = 'Skipped'; Message = 'NoBattery' }) }
         @{ Id = 'SYS-BATTERY-001'; Name = 'a battery that powercfg does not report is Skipped'; Data = @{ HasBattery = $true; Batteries = @() }; Expect = @(@{ Status = 'Skipped'; Message = 'NoBattery' }) }
@@ -199,27 +199,90 @@ Describe 'System checks: numbers follow the report language, not the session cul
     }
 }
 
+Describe 'System checks: no glyph and no empty placeholder when data is missing' {
+    BeforeAll {
+        $script:runFixture = {
+            param([string]$Id, [hashtable]$Data, [string]$Language)
+            $check = $script:byId[$Id].Clone()
+            $check.Collect = { $Data }.GetNewClosure()
+            InModuleScope Chekap -Parameters @{ C = $check; L = $Language } { @(Invoke-ChekapCheck -Check $C -Language $L) }
+        }
+    }
+
+    It 'SYS-DISK-001 without candidate folders: <Language> text has no dash and does not point at a list' -ForEach @(
+        @{ Language = 'en'; Free = 12GB; Status = 'Warning'; Message = 'LowNoFolders'; Listed = 'listed above|What can be cleaned' }
+        @{ Language = 'uk'; Free = 12GB; Status = 'Warning'; Message = 'LowNoFolders'; Listed = 'перелічен|Що можна очистити' }
+        @{ Language = 'en'; Free = 4GB; Status = 'Critical'; Message = 'CriticalLowNoFolders'; Listed = 'listed above|What can be cleaned' }
+        @{ Language = 'uk'; Free = 4GB; Status = 'Critical'; Message = 'CriticalLowNoFolders'; Listed = 'перелічен|Що можна очистити' }
+    ) {
+        $result = @(& $script:runFixture 'SYS-DISK-001' @{ Drive = 'C:'; SizeBytes = [long]100GB; FreeBytes = [long]$Free; Candidates = @(); OldProfiles = 2 } $Language)
+        $result.Count | Should -Be 1
+        $result[0].Status | Should -Be $Status
+        foreach ($text in $result[0].Details, $result[0].Recommendation) {
+            $text | Should -Not -Match $Listed
+            $text | Should -Not -Match '[—×]'
+            $text | Should -Not -Match '\{\d'
+            $text | Should -Not -Match 'SYS-DISK-001\.'
+        }
+        $result[0].Details | Should -Match '\b2\b'
+    }
+
+    It 'SYS-APPCRASH-001 without a stability index says nothing about the index in <Language>' -ForEach @(@{ Language = 'en' }, @{ Language = 'uk' }) {
+        $result = @(& $script:runFixture 'SYS-APPCRASH-001' @{ Crashes = @('a.exe'); StabilityIndex = $null } $Language)
+        $result.Count | Should -Be 1
+        $result[0].Status | Should -Be 'OK'
+        $result[0].Details | Should -Not -Match '[—×]'
+        $result[0].Details | Should -Not -Match 'SYS-APPCRASH-001\.'
+        $result[0].Details | Should -Match '7'
+        $result[0].Details | Should -Not -Match '(?i)index|індекс'
+    }
+
+    It 'SYS-APPCRASH-001 lists repeated crashes with the count in brackets in <Language>' -ForEach @(@{ Language = 'en' }, @{ Language = 'uk' }) {
+        $result = @(& $script:runFixture 'SYS-APPCRASH-001' @{ Crashes = @('contoso.exe', 'contoso.exe', 'contoso.exe'); StabilityIndex = 8 } $Language)
+        $result[0].Status | Should -Be 'Warning'
+        $result[0].Details | Should -BeLike '*contoso.exe (3)*'
+        $result[0].Details | Should -Not -Match '[×]'
+    }
+}
+
 Describe 'System checks: Collect' {
-    It 'SYS-UPTIME-001 reads LastBoot and FastStartup' {
-        Mock Get-CimInstance { [pscustomobject]@{ LastBootUpTime = [datetime]'2026-03-01T08:30:00' } } -ModuleName Chekap -ParameterFilter { $ClassName -eq 'Win32_OperatingSystem' }
-        Mock Get-ItemProperty { [pscustomobject]@{ HiberbootEnabled = 1 } } -ModuleName Chekap
-        $check = $script:byId['SYS-UPTIME-001']
-        $data = & $check.Collect $check.Settings
-        $data.LastBoot | Should -Be ([datetime]'2026-03-01T08:30:00')
-        $data.FastStartup | Should -BeOfType [bool]
-        $data.FastStartup | Should -BeTrue
-        $data.Now | Should -BeOfType [datetime]
-    }
+    Context 'SYS-UPTIME-001 FastStartup' {
+        BeforeEach {
+            Mock Get-CimInstance { [pscustomobject]@{ LastBootUpTime = [datetime]'2026-03-01T08:30:00' } } -ModuleName Chekap -ParameterFilter { $ClassName -eq 'Win32_OperatingSystem' }
+            $script:uptimeCheck = $script:byId['SYS-UPTIME-001']
+        }
 
-    It 'SYS-UPTIME-001 FastStartup is false when the value is 0 or missing' {
-        Mock Get-CimInstance { [pscustomobject]@{ LastBootUpTime = [datetime]'2026-03-01T08:30:00' } } -ModuleName Chekap -ParameterFilter { $ClassName -eq 'Win32_OperatingSystem' }
-        $check = $script:byId['SYS-UPTIME-001']
-        Mock Get-ItemProperty { [pscustomobject]@{ HiberbootEnabled = 0 } } -ModuleName Chekap
-        (& $check.Collect $check.Settings).FastStartup | Should -BeFalse
-        Mock Get-ItemProperty { $null } -ModuleName Chekap
-        (& $check.Collect $check.Settings).FastStartup | Should -BeFalse
-    }
+        It 'reads LastBoot and is on when HiberbootEnabled and HibernateEnabled are both 1' {
+            Mock Get-ItemProperty { [pscustomobject]@{ HiberbootEnabled = 1 } } -ModuleName Chekap -ParameterFilter { $LiteralPath -eq 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Power' }
+            Mock Get-ItemProperty { [pscustomobject]@{ HibernateEnabled = 1 } } -ModuleName Chekap -ParameterFilter { $LiteralPath -eq 'HKLM:\SYSTEM\CurrentControlSet\Control\Power' }
+            $data = & $script:uptimeCheck.Collect $script:uptimeCheck.Settings
+            $data.LastBoot | Should -Be ([datetime]'2026-03-01T08:30:00')
+            $data.FastStartup | Should -BeOfType [bool]
+            $data.FastStartup | Should -BeTrue
+            $data.Now | Should -BeOfType [datetime]
+        }
 
+        It 'is off when hibernation is off (powercfg /h off), although HiberbootEnabled is still 1' {
+            Mock Get-ItemProperty { [pscustomobject]@{ HiberbootEnabled = 1 } } -ModuleName Chekap -ParameterFilter { $LiteralPath -eq 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Power' }
+            Mock Get-ItemProperty { [pscustomobject]@{ HibernateEnabled = 0 } } -ModuleName Chekap -ParameterFilter { $LiteralPath -eq 'HKLM:\SYSTEM\CurrentControlSet\Control\Power' }
+            (& $script:uptimeCheck.Collect $script:uptimeCheck.Settings).FastStartup | Should -BeFalse
+        }
+
+        It 'is off when HiberbootEnabled is 0, although hibernation is on' {
+            Mock Get-ItemProperty { [pscustomobject]@{ HiberbootEnabled = 0 } } -ModuleName Chekap -ParameterFilter { $LiteralPath -eq 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Power' }
+            Mock Get-ItemProperty { [pscustomobject]@{ HibernateEnabled = 1 } } -ModuleName Chekap -ParameterFilter { $LiteralPath -eq 'HKLM:\SYSTEM\CurrentControlSet\Control\Power' }
+            (& $script:uptimeCheck.Collect $script:uptimeCheck.Settings).FastStartup | Should -BeFalse
+        }
+
+        It 'is off when either value is missing' {
+            Mock Get-ItemProperty { [pscustomobject]@{ HiberbootEnabled = 1 } } -ModuleName Chekap -ParameterFilter { $LiteralPath -eq 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Power' }
+            Mock Get-ItemProperty { $null } -ModuleName Chekap -ParameterFilter { $LiteralPath -eq 'HKLM:\SYSTEM\CurrentControlSet\Control\Power' }
+            (& $script:uptimeCheck.Collect $script:uptimeCheck.Settings).FastStartup | Should -BeFalse
+            Mock Get-ItemProperty { $null } -ModuleName Chekap -ParameterFilter { $LiteralPath -eq 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Power' }
+            Mock Get-ItemProperty { [pscustomobject]@{ HibernateEnabled = 1 } } -ModuleName Chekap -ParameterFilter { $LiteralPath -eq 'HKLM:\SYSTEM\CurrentControlSet\Control\Power' }
+            (& $script:uptimeCheck.Collect $script:uptimeCheck.Settings).FastStartup | Should -BeFalse
+        }
+    }
     It 'SYS-REBOOT-001 reads the two flags and counts PendingFileRenameOperations' {
         Mock Test-Path { $true } -ModuleName Chekap -ParameterFilter { $LiteralPath -like '*Auto Update\RebootRequired' }
         Mock Test-Path { $false } -ModuleName Chekap -ParameterFilter { $LiteralPath -like '*Component Based Servicing\RebootPending' }

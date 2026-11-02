@@ -127,6 +127,8 @@
     # NET-PROFILE-001
     'NET-PROFILE-001.Title' = 'Network profile'
     'NET-PROFILE-001.Ok.Details' = 'The network profile is {0}.'
+    'NET-PROFILE-001.OkPrivate.Details' = 'The network profile is Private network.'
+    'NET-PROFILE-001.OkDomain.Details' = 'The network profile is Domain network.'
     'NET-PROFILE-001.NoProfile.Details' = 'Windows reports no active network connection, so there is no network profile to check.'
     'NET-PROFILE-001.NoProfile.Recommendation' = 'Connect the PC to a network (check NET-ADAPTER-001). If it is connected, make sure the services Network List Service (netprofm) and Network Location Awareness (NlaSvc) are running, then run the check again.'
     'NET-PROFILE-001.Public.Details' = 'The network "{0}" has the Public profile. On a Public network Windows blocks file and printer sharing and network discovery, so shared folders and printers may be unreachable.'
@@ -244,6 +246,7 @@
     # SYS-APPCRASH-001
     'SYS-APPCRASH-001.Title' = 'Application crashes'
     'SYS-APPCRASH-001.Ok.Details' = 'Application crashes in the last {1} days: {0}. No application crashed repeatedly. Stability index: {2:N1}.'
+    'SYS-APPCRASH-001.OkNoIndex.Details' = 'Application crashes in the last {1} days: {0}. No application crashed repeatedly.'
     'SYS-APPCRASH-001.Crashing.Details' = 'In the last {1} days these applications crashed repeatedly: {0}.'
     'SYS-APPCRASH-001.Crashing.Recommendation' = 'Update or reinstall the listed applications. Open Event Viewer (eventvwr.msc) > Windows Logs > Application, find the Application Error events (ID 1000), note the faulting module, and look for a fix on the vendor''s site.'
 
@@ -272,8 +275,12 @@
     'SYS-DISK-001.Ok.Details' = 'Free space: {0:N1} GB ({1:N0}% of the drive).'
     'SYS-DISK-001.Low.Details' = 'Only {0:N1} GB ({1:N0}%) is free. What can be cleaned (size in GB): {2}. User profiles not used for over 90 days: {3}.'
     'SYS-DISK-001.Low.Recommendation' = 'Run Disk Cleanup (cleanmgr) as administrator and choose Clean up system files. Empty the folders listed above and delete old user profiles that are no longer needed (System Properties > Advanced > User Profiles > Settings). Move large files to another drive.'
+    'SYS-DISK-001.LowNoFolders.Details' = 'Only {0:N1} GB ({1:N0}%) is free. User profiles not used for over 90 days: {2}.'
+    'SYS-DISK-001.LowNoFolders.Recommendation' = 'Run Disk Cleanup (cleanmgr) as administrator and choose Clean up system files. Delete old user profiles that are no longer needed (System Properties > Advanced > User Profiles > Settings). Move large files to another drive.'
     'SYS-DISK-001.CriticalLow.Details' = 'Critically low: only {0:N1} GB ({1:N0}%) is free. What can be cleaned (size in GB): {2}. User profiles not used for over 90 days: {3}.'
     'SYS-DISK-001.CriticalLow.Recommendation' = 'Free up space now: Windows needs room for updates, the page file and crash dumps, and without it updates fail and the system becomes unstable. Run Disk Cleanup (cleanmgr) as administrator, empty the folders listed above, delete old user profiles and move large files to another drive.'
+    'SYS-DISK-001.CriticalLowNoFolders.Details' = 'Critically low: only {0:N1} GB ({1:N0}%) is free. User profiles not used for over 90 days: {2}.'
+    'SYS-DISK-001.CriticalLowNoFolders.Recommendation' = 'Free up space now: Windows needs room for updates, the page file and crash dumps, and without it updates fail and the system becomes unstable. Run Disk Cleanup (cleanmgr) as administrator, delete old user profiles and move large files to another drive.'
 
     # SYS-MEMORY-001
     'SYS-MEMORY-001.Title' = 'Memory and page file'

@@ -32,7 +32,14 @@
                 if ($networkProfile.Category -eq 'Public') {
                     @{ Status = 'Warning'; Message = 'Public'; Target = $networkProfile.Alias; Args = @($networkProfile.Name); Evidence = $networkProfile }
                 }
+                elseif ($networkProfile.Category -eq 'Private') {
+                    @{ Status = 'OK'; Message = 'OkPrivate'; Target = $networkProfile.Alias; Evidence = $networkProfile }
+                }
+                elseif ($networkProfile.Category -eq 'DomainAuthenticated') {
+                    @{ Status = 'OK'; Message = 'OkDomain'; Target = $networkProfile.Alias; Evidence = $networkProfile }
+                }
                 else {
+                    # A category that Windows adds later is shown by its name.
                     @{ Status = 'OK'; Message = 'Ok'; Target = $networkProfile.Alias; Args = @($networkProfile.Category); Evidence = $networkProfile }
                 }
             }

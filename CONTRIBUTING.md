@@ -47,11 +47,13 @@ Start from this real check. Copy it and change it:
     Settings      = @{ WarnDays = 14 }
     Collect       = {
         $os = Get-CimInstance -ClassName Win32_OperatingSystem
-        $power = Get-ItemProperty -LiteralPath 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Power' -Name 'HiberbootEnabled' -ErrorAction SilentlyContinue
+        $boot = Get-ItemProperty -LiteralPath 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Power' -Name 'HiberbootEnabled' -ErrorAction SilentlyContinue
+        # Fast Startup needs hibernation: after "powercfg /h off" HiberbootEnabled can stay 1 while Shut down is a full shutdown again.
+        $hibernation = Get-ItemProperty -LiteralPath 'HKLM:\SYSTEM\CurrentControlSet\Control\Power' -Name 'HibernateEnabled' -ErrorAction SilentlyContinue
         @{
             LastBoot    = [datetime]$os.LastBootUpTime
             Now         = Get-Date
-            FastStartup = ($null -ne $power -and $power.HiberbootEnabled -eq 1)
+            FastStartup = ($null -ne $boot -and $boot.HiberbootEnabled -eq 1 -and $null -ne $hibernation -and $hibernation.HibernateEnabled -eq 1)
         }
     }
     Evaluate      = {

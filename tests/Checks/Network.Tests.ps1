@@ -67,10 +67,11 @@
         @{ Id = 'NET-PROXY-001'; Name = 'a script and a proxy give Pac then the proxy verdict'; Data = (& $proxy $true 'proxy.contoso.local:3128' 'http://wpad.contoso.local/proxy.pac' $null @{ 'proxy.contoso.local:3128' = $true }); Expect = @(@{ Status = 'OK'; Message = 'Pac' }, @{ Status = 'OK'; Message = 'Proxy'; Target = 'proxy.contoso.local:3128' }) }
 
         @{ Id = 'NET-PROFILE-001'; Name = 'no profiles is Skipped'; Data = @{ Profiles = @() }; Expect = @(@{ Status = 'Skipped'; Message = 'NoProfile' }) }
-        @{ Id = 'NET-PROFILE-001'; Name = 'a Private network is OK with its category'; Data = @{ Profiles = @(& $netProfile 'Ethernet' 'contoso.local' 'Private') }; Expect = @(@{ Status = 'OK'; Message = 'Ok'; Target = 'Ethernet'; Args = @('Private') }) }
-        @{ Id = 'NET-PROFILE-001'; Name = 'a domain network is OK'; Data = @{ Profiles = @(& $netProfile 'Ethernet' 'contoso.local' 'DomainAuthenticated') }; Expect = @(@{ Status = 'OK'; Message = 'Ok'; Target = 'Ethernet'; Args = @('DomainAuthenticated') }) }
+        @{ Id = 'NET-PROFILE-001'; Name = 'a Private network is OkPrivate, without the raw category in the text'; Data = @{ Profiles = @(& $netProfile 'Ethernet' 'contoso.local' 'Private') }; Expect = @(@{ Status = 'OK'; Message = 'OkPrivate'; Target = 'Ethernet' }) }
+        @{ Id = 'NET-PROFILE-001'; Name = 'a domain network is OkDomain'; Data = @{ Profiles = @(& $netProfile 'Ethernet' 'contoso.local' 'DomainAuthenticated') }; Expect = @(@{ Status = 'OK'; Message = 'OkDomain'; Target = 'Ethernet' }) }
+        @{ Id = 'NET-PROFILE-001'; Name = 'a category that Windows adds later is still OK, with its name'; Data = @{ Profiles = @(& $netProfile 'Ethernet' 'contoso.local' 'Isolated') }; Expect = @(@{ Status = 'OK'; Message = 'Ok'; Target = 'Ethernet'; Args = @('Isolated') }) }
         @{ Id = 'NET-PROFILE-001'; Name = 'a Public network is Public with the network name'; Data = @{ Profiles = @(& $netProfile 'Wi-Fi' 'Guest Network' 'Public') }; Expect = @(@{ Status = 'Warning'; Message = 'Public'; Target = 'Wi-Fi'; Args = @('Guest Network') }) }
-        @{ Id = 'NET-PROFILE-001'; Name = 'every profile gets its own verdict'; Data = @{ Profiles = @((& $netProfile 'Ethernet' 'contoso.local' 'Private'), (& $netProfile 'Wi-Fi' 'Guest Network' 'Public')) }; Expect = @(@{ Status = 'OK'; Message = 'Ok'; Target = 'Ethernet' }, @{ Status = 'Warning'; Message = 'Public'; Target = 'Wi-Fi' }) }
+        @{ Id = 'NET-PROFILE-001'; Name = 'every profile gets its own verdict'; Data = @{ Profiles = @((& $netProfile 'Ethernet' 'contoso.local' 'Private'), (& $netProfile 'Wi-Fi' 'Guest Network' 'Public')) }; Expect = @(@{ Status = 'OK'; Message = 'OkPrivate'; Target = 'Ethernet' }, @{ Status = 'Warning'; Message = 'Public'; Target = 'Wi-Fi' }) }
 
         @{ Id = 'NET-TIME-001'; Name = 'no offset is NoSource with the source'; Data = (& $time $null 'ntp.contoso.local'); Expect = @(@{ Status = 'Warning'; Message = 'NoSource'; Args = @('ntp.contoso.local') }) }
         @{ Id = 'NET-TIME-001'; Name = 'no source configured is NoSourceConfigured, without Args'; Data = (& $time $null $null); Expect = @(@{ Status = 'Warning'; Message = 'NoSourceConfigured'; Args = @() }) }
@@ -662,7 +663,16 @@ Describe 'Network checks: Collect' {
             Should -Invoke Test-ChekapTcpPort -ModuleName Chekap -Times 1 -Exactly -ParameterFilter { $ComputerName -eq 'proxy.contoso.local' -and $Port -eq 3128 }
         }
 
-        It 'does not test a proxy written without a valid port' -ForEach @(@{ Server = 'proxy.contoso.local' }, @{ Server = 'proxy.contoso.local:99999' }, @{ Server = 'proxy.contoso.local:0' }) {
+        It 'tests a proxy written without a port on port 80: <Server>' -ForEach @(@{ Server = 'proxy.contoso.local' }, @{ Server = 'http://proxy.contoso.local' }, @{ Server = 'http=proxy.contoso.local;https=proxy.contoso.local' }) {
+            Mock Get-ItemProperty { [pscustomobject]@{ ProxyEnable = 1; ProxyServer = $Server } }.GetNewClosure() -ModuleName Chekap -ParameterFilter { $LiteralPath -like 'HKCU:*Internet Settings' }
+            $check = $script:byId['NET-PROXY-001']
+            $data = & $check.Collect $check.Settings
+            $data.Reachable.Count | Should -Be 1
+            $data.Reachable['proxy.contoso.local:80'] | Should -BeTrue
+            Should -Invoke Test-ChekapTcpPort -ModuleName Chekap -Times 1 -Exactly -ParameterFilter { $ComputerName -eq 'proxy.contoso.local' -and $Port -eq 80 }
+        }
+
+        It 'does not test a proxy written with an invalid port: <Server>' -ForEach @(@{ Server = 'proxy.contoso.local:99999' }, @{ Server = 'proxy.contoso.local:0' }, @{ Server = '' }) {
             Mock Get-ItemProperty { [pscustomobject]@{ ProxyEnable = 1; ProxyServer = $Server } }.GetNewClosure() -ModuleName Chekap -ParameterFilter { $LiteralPath -like 'HKCU:*Internet Settings' }
             $check = $script:byId['NET-PROXY-001']
             { & $check.Collect $check.Settings } | Should -Not -Throw
@@ -709,7 +719,7 @@ Describe 'Network checks: Collect' {
             $data.Profiles[0].Alias | Should -Be 'Ethernet'
             $verdicts = @(& $check.Evaluate $data $check.Settings)
             $verdicts.Count | Should -Be 1
-            $verdicts[0].Message | Should -Be 'Ok'
+            $verdicts[0].Message | Should -Be 'OkPrivate'
         }
 
         It 'is NoProfile when only profiles outside the connected set are left' {

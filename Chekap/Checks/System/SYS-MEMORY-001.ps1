@@ -37,7 +37,7 @@
             @{ Status = 'OK'; Message = 'Ok'; Args = @($totalGB, $freePercent) }
         }
         if ($Data.PagefileMB -eq 0) {
-            @{ Status = 'Warning'; Message = 'NoPagefile'; Target = 'pagefile' }
+            @{ Status = 'Warning'; Message = 'NoPagefile' }
         }
     }
 }

@@ -27,15 +27,22 @@
             if ($length -gt 0 -and 16 + $length -le $bytes.Length) { $winHttpProxy = [System.Text.Encoding]::ASCII.GetString($bytes, 16, $length) }
         }
 
-        # shortcut: only a proxy written as host:port is tested (the first one of a per-protocol list), and a PAC script is not downloaded; follow the script if that matters.
+        # shortcut: only the first proxy of a per-protocol list is tested (host:port, or a host alone on port 80), and a PAC script is not downloaded; follow the script if that matters.
         $reachable = @{}
         $inUse = @($winHttpProxy)
         if ($userEnabled) { $inUse = @($userServer) + $inUse }
         foreach ($text in $inUse) {
-            if ($text -notmatch '([^=;\s/]+):(\d{1,5})') { continue }
-            $proxy = $Matches[0]
-            $hostName = $Matches[1]
-            $port = [int]$Matches[2]
+            if ($text -match '([^=;\s/]+):(\d{1,5})') {
+                $hostName = $Matches[1]
+                $port = [int]$Matches[2]
+            }
+            elseif ($text -match '^\s*(?:[A-Za-z]+=)?(?:[A-Za-z][A-Za-z0-9+.-]*://)?([^=;:\s/]+)') {
+                # No port written: a proxy without one is on the default port 80.
+                $hostName = $Matches[1]
+                $port = 80
+            }
+            else { continue }
+            $proxy = '{0}:{1}' -f $hostName, $port
             if ($port -lt 1 -or $port -gt 65535 -or $reachable.ContainsKey($proxy)) { continue }
             $reachable[$proxy] = [bool](Test-ChekapTcpPort -ComputerName $hostName -Port $port -TimeoutMs $Settings.TimeoutMs)
         }
