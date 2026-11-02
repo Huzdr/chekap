@@ -127,7 +127,7 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass   # лише якщо
 
 ### 6. Запустіть збірку
 
-Спершу спробуйте нову перевірку на своєму ПК (підставте свій Id замість `<Id>`; папку `out` Git ігнорує):
+Спершу спробуйте нову перевірку на своєму ПК (підставте Id вашої перевірки замість `<Id>`; папку `out` Git ігнорує):
 
 ```powershell
 Import-Module ./Chekap/Chekap.psd1 -Force
@@ -138,7 +138,7 @@ Invoke-ChekapAudit -CheckId <Id> -OutputPath out/try -Verbose
 
 ```powershell
 ./build.ps1                                          # Lint і Test, типово
-./build.ps1 -Task Lint                               # лише PSScriptAnalyzer; має пройти без жодних зауважень
+./build.ps1 -Task Lint                               # лише PSScriptAnalyzer; має пройти без жодних попереджень
 ./build.ps1 -Task Test -TestPath tests/Checks/System.Tests.ps1
 ```
 

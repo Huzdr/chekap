@@ -138,7 +138,7 @@ Then run the build. From a PowerShell prompt in the repository folder:
 
 ```powershell
 ./build.ps1                                          # Lint and Test, the default
-./build.ps1 -Task Lint                               # PSScriptAnalyzer only; it must pass with no findings
+./build.ps1 -Task Lint                               # PSScriptAnalyzer only; it must pass with no warnings
 ./build.ps1 -Task Test -TestPath tests/Checks/System.Tests.ps1
 ```
 
