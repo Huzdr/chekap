@@ -28,8 +28,8 @@ Version 0.1 only diagnoses. Fixes, remote runs and CSV are planned (see [Roadmap
 
 1. Download `Chekap-0.1.0.zip` from the [Releases](https://github.com/Huzdr/chekap/releases) page.
 2. Unblock the zip **before** you extract it: right-click the file, Properties, tick Unblock, OK. Or in PowerShell: `Unblock-File .\Chekap-0.1.0.zip`. Windows marks downloaded files, and PowerShell may refuse to load marked scripts.
-3. Extract the zip into a folder on a local disk, a flash drive or a network path like `\\server\share` (not a mapped network drive, see [Known limitations](#known-limitations)).
-4. Double-click `Start-Chekap.cmd`. Windows asks for administrator rights (UAC). If you decline, the menu still opens. Choose a check, or item 5 to save an HTML and a JSON report to the `Chekap` folder inside Documents and open the HTML file.
+3. Extract the zip into a folder on a local disk, a flash drive or a shared network folder like `\\server\share`.
+4. Double-click `Start-Chekap.cmd`. The menu opens and runs as the signed-in user, so it checks the printers, the proxy and the settings of that user. Choose a check, or item 5 to save an HTML and a JSON report to the `Chekap` folder inside Documents and open the HTML file.
 
 To work in a PowerShell window instead of the menu:
 
@@ -111,10 +111,10 @@ Every finding links to the documentation it is based on, mostly from Microsoft.
 - **Group Policy and code signing.** If the PowerShell execution policy is set by Group Policy (for example `AllSigned`), it overrides the `-ExecutionPolicy Bypass` of `Start-Chekap.cmd`. Chekap is not code-signed yet, so it will not start there.
 - **AppLocker and WDAC.** Under Constrained Language Mode an unsigned module cannot work. Chekap detects this on import and tells you why instead of failing with an obscure error.
 - **Windows Server 2016 is best effort.** It is the lowest supported system, but the tests run only on newer Windows, so it is not tested there.
-- **Run the launcher from a local folder, a flash drive or a UNC path, not from a mapped network drive.** The elevated session started after the UAC prompt does not see network drives mapped to letters (for example Z:).
+- **The launcher runs as the signed-in user and does not ask for administrator rights.** The checks then see the printers, the proxy and the settings of the user who has the problem, not those of another administrator. Without administrator rights the folder of crash dumps cannot be read; if you need it, start PowerShell as administrator yourself and run `Import-Module .\Chekap\Chekap.psd1; Start-Chekap`.
 - **With administrator rights the menu opens the report in a browser that also runs with those rights.** If you do not want that, open the saved HTML file yourself.
 - **`Invoke-ChekapAudit` prints the paths of the report files only with `-Verbose`.** The menu (item 5) always saves reports to the `Chekap` folder in Documents.
-- **Look through a report before you send it outside your organization.** It contains the name of the PC, its IP addresses and the names of its printers.
+- **Look through a report before you send it outside your organization.** Besides the name of the PC, its IP addresses and the names of its printers, it contains the names of users (in the path of the temporary folder and in the list of startup programs), the domain, the name of the network or Wi-Fi, the addresses of the gateway and the DNS servers, the names of the time source, the domain controller and the print servers, and the names of running processes.
 
 The checks read local data. The network and printing checks also contact the gateway, the DNS servers, the time source, the proxy server if one is set, `www.microsoft.com` (a name lookup and a connection to port 443), and the printers and print servers. Nothing is sent to the authors or to anyone else.
 
@@ -128,7 +128,7 @@ The checks read local data. The network and printing checks also contact the gat
 
 Planned, not promised. The order and the content can change.
 
-- **0.2:** fixes with `-WhatIf`, a backup of what was changed and a rollback; a before/after comparison of two reports.
+- **0.2:** fixes with `-WhatIf`, a backup of what was changed and a rollback; a before/after comparison of two reports. The launcher asks for administrator rights again, because some fixes need them.
 - **0.3:** shared folders and NAS (SMB), Windows Update, disks, basic security including the Secure Boot certificates of 2026.
 - **0.4:** remote and fleet runs (`-ComputerName`), CSV, `-Anonymize` for sharing a report, your own checks without a fork, OS lifecycle and Windows 11 readiness, everyday domain problems.
 - **0.5:** a regional pack for Ukraine, notifications, version 1.0 in the PowerShell Gallery.

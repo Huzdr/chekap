@@ -16,7 +16,7 @@ First release. It only diagnoses: nothing is changed on the PC.
 - Findings and reports in Ukrainian and in English, from the same checks. The language is taken from `-Language`, then from the setting saved by `Set-ChekapConfig`, then from the language of Windows.
 - Commands: `Test-ChekapHealth`, `Test-ChekapNetwork`, `Test-ChekapPrinting`, `Invoke-ChekapAudit`, `Get-ChekapCheck`, `Get-ChekapConfig`, `Set-ChekapConfig` and `Start-Chekap`.
 - `Invoke-ChekapAudit -OutputPath` writes a report as one HTML file and as JSON. The HTML report works offline, shows the passport of the PC, counters, filters by status and category, a light and a dark theme and a layout for printing.
-- `Start-Chekap`, a console menu, and `Start-Chekap.cmd`, which starts it by a double click from the offline package (it asks for administrator rights once).
+- `Start-Chekap`, a console menu, and `Start-Chekap.cmd`, which starts it by a double click from the offline package (it runs as the signed-in user and does not ask for administrator rights).
 - Help for every command in English and in Ukrainian.
 - Detection of Constrained Language Mode (AppLocker, WDAC): the module explains why it cannot work there.
 - Documentation in two languages: README, CONTRIBUTING and a glossary; issue forms and a pull request template.

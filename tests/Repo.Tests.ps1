@@ -232,32 +232,29 @@ Describe 'Start-Chekap.cmd launcher' {
         [regex]::Matches($script:cmdText, '\r(?!\n)').Count | Should -Be 0
     }
 
-    It 'tests for administrator rights with fltmc, which does not depend on the Server service' {
-        $script:cmdText | Should -Match '(?m)^fltmc >nul 2>&1\r$'
-        $script:cmdText | Should -Not -Match 'net session'
+    It 'runs as the signed-in user: it does not elevate and does not test for administrator rights' {
+        # A UAC prompt can take the credentials of another administrator, and then the checks would look at that account instead of the user.
+        $script:cmdText | Should -Not -Match '(?i)RunAs'
+        $script:cmdText | Should -Not -Match '(?i)fltmc|net session'
+        $script:cmdText | Should -Not -Match '(?i)elevated'
+        $script:cmdText | Should -Not -Match '(?i)Start-Process'
+        $script:cmdText | Should -Not -Match '(?m)^if "%~1"'
     }
 
-    It 'asks for elevation once: it passes the elevated marker and skips the request when it has it' {
-        $script:cmdText | Should -Match '(?m)^if "%~1"=="elevated" goto menu\r$'
-        $script:cmdText | Should -Match "-ArgumentList 'elevated' -Verb RunAs"
-        # The marker test comes first, otherwise a copy that already has the marker could ask again.
-        $script:cmdText.IndexOf('if "%~1"=="elevated"') | Should -BeLessThan $script:cmdText.IndexOf('-Verb RunAs')
-        $script:cmdText | Should -Match '(?m)^:menu\r$'
+    It 'starts Windows PowerShell by its absolute path, not by a name that cmd searches for in the current folder first' {
+        $script:cmdText | Should -Match ('(?m)^"%SystemRoot%\\System32\\WindowsPowerShell\\v1\.0\\powershell\.exe" -NoProfile ')
+        # No bare tool name at the start of a line or after a quote or a pipe.
+        $script:cmdText | Should -Not -Match '(?im)^\s*powershell(\.exe)?\s'
+        $script:cmdText | Should -Not -Match '(?i)[|&]\s*powershell'
     }
 
-    It 'hands its own paths to PowerShell through environment variables, not inside a quoted string' {
+    It 'hands its own folder to PowerShell through an environment variable, not inside a quoted string' {
         # A path with an apostrophe (Дем'ян, U+2019) would end a PowerShell single-quoted string early.
         $script:cmdText | Should -Not -Match "'%~"
         $script:cmdText | Should -Match '(?m)^setlocal\r$'
-        $script:cmdText | Should -Match '(?m)^set "CHEKAP_SELF=%~f0"\r$'
         $script:cmdText | Should -Match '(?m)^set "CHEKAP_HOME=%~dp0"\r$'
-        $script:cmdText | Should -Match ([regex]::Escape('-FilePath $env:CHEKAP_SELF -ArgumentList'))
-        # Both are set before the elevated marker is tested: the elevated copy needs them too.
-        $guard = $script:cmdText.IndexOf('if "%~1"=="elevated"')
-        $script:cmdText.IndexOf('set "CHEKAP_SELF=') | Should -BeLessThan $guard
-        $script:cmdText.IndexOf('set "CHEKAP_HOME=') | Should -BeLessThan $guard
+        $script:cmdText | Should -Not -Match 'CHEKAP_SELF'
     }
-
     It 'imports the module that sits next to it and starts the menu' {
         $script:cmdText | Should -Match ([regex]::Escape("-Command ""Import-Module (Join-Path `$env:CHEKAP_HOME 'Chekap\Chekap.psd1'); Start-Chekap"""))
         Test-Path -LiteralPath (Join-Path $script:root 'Chekap/Chekap.psd1') | Should -BeTrue
