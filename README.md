@@ -24,6 +24,8 @@ Version 0.1 only diagnoses. Fixes, remote runs and CSV are planned (see [Roadmap
 
 ## Quick start
 
+**Supported:** Windows 10 22H2, Windows 11 and Windows Server 2016 or newer (Server 2016 is best effort); Windows PowerShell 5.1 or PowerShell 7.
+
 1. Download `Chekap-0.1.0.zip` from the [Releases](https://github.com/Huzdr/chekap/releases) page.
 2. Unblock the zip **before** you extract it: right-click the file, Properties, tick Unblock, OK. Or in PowerShell: `Unblock-File .\Chekap-0.1.0.zip`. Windows marks downloaded files, and PowerShell may refuse to load marked scripts.
 3. Extract the zip into a folder on a local disk, a flash drive or a network path like `\\server\share` (not a mapped network drive, see [Known limitations](#known-limitations)).
@@ -62,9 +64,9 @@ Get-ChekapCheck -Language uk
 Set-ChekapConfig -Language uk
 ```
 
-`Test-ChekapHealth`, `Test-ChekapNetwork` and `Test-ChekapPrinting` run the checks of one category. Every command returns one object per finding with properties such as `CheckId`, `Category`, `ComputerName`, `Status`, `Target`, `Title`, `Details`, `Recommendation`, `Evidence` and `References`, so the result can be filtered, sorted and exported in PowerShell. The `Status` values are always `OK`, `Warning`, `Critical`, `Error` (the check could not finish) or `Skipped` (the check does not apply, for example there is no battery). They stay in English whatever the language, so your scripts do not depend on it.
+`Test-ChekapHealth`, `Test-ChekapNetwork` and `Test-ChekapPrinting` run the checks of one category. The `Test-*` commands and `Invoke-ChekapAudit` return one object per finding with properties such as `CheckId`, `Category`, `ComputerName`, `Status`, `Target`, `Title`, `Details`, `Recommendation`, `Evidence` and `References`, so the result can be filtered, sorted and exported in PowerShell. The `Status` values are always `OK`, `Warning`, `Critical`, `Error` (the check could not finish) or `Skipped` (the check does not apply, for example there is no battery). They stay in English whatever the language, so your scripts do not depend on it.
 
-The language of the findings and the report is the `-Language` of the command, otherwise the one saved by `Set-ChekapConfig`, otherwise the language of the Windows interface (Ukrainian if it is Ukrainian, English otherwise). Help for every command is in both languages: `Get-Help Invoke-ChekapAudit -Examples`.
+The language of the findings and the report is the `-Language` of the command, otherwise the one saved by `Set-ChekapConfig`, otherwise the language of the Windows interface (Ukrainian if it is Ukrainian, English otherwise). Help for every command is in both languages: `Get-Help Invoke-ChekapAudit -Examples`. It works from the release package, which carries the built help files; a plain clone of the repository has none (the sources of the help are in `docs/en` and `docs/uk`).
 
 ## What it checks
 
@@ -109,9 +111,9 @@ Every finding links to the documentation it is based on, mostly from Microsoft.
 - **Group Policy and code signing.** If the PowerShell execution policy is set by Group Policy (for example `AllSigned`), it overrides the `-ExecutionPolicy Bypass` of `Start-Chekap.cmd`. Chekap is not code-signed yet, so it will not start there.
 - **AppLocker and WDAC.** Under Constrained Language Mode an unsigned module cannot work. Chekap detects this on import and tells you why instead of failing with an obscure error.
 - **Windows Server 2016 is best effort.** It is the lowest supported system, but the tests run only on newer Windows, so it is not tested there.
-- **Run the launcher from a local folder, a flash drive or a UNC path, not from a mapped network drive.** The elevated session started after the UAC prompt does not see mapped drives.
+- **Run the launcher from a local folder, a flash drive or a UNC path, not from a mapped network drive.** The elevated session started after the UAC prompt does not see network drives mapped to letters (for example Z:).
 - **With administrator rights the menu opens the report in a browser that also runs with those rights.** If you do not want that, open the saved HTML file yourself.
-- **`Invoke-ChekapAudit` prints the paths of the report files only with `-Verbose`.** The menu (item 5) always saves to `Documents\Chekap`.
+- **`Invoke-ChekapAudit` prints the paths of the report files only with `-Verbose`.** The menu (item 5) always saves reports to the `Chekap` folder in Documents.
 - **Look through a report before you send it outside your organization.** It contains the name of the PC, its IP addresses and the names of its printers.
 
 The checks read local data. The network and printing checks also contact the gateway, the DNS servers, the time source, the proxy server if one is set, `www.microsoft.com` (a name lookup and a connection to port 443), and the printers and print servers. Nothing is sent to the authors or to anyone else.

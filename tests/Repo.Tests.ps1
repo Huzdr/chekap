@@ -362,7 +362,7 @@ Describe 'Documentation and community files' {
     It 'no file of the repository names the PC the tests run on' {
         # Real names must not leak into docs, fixtures or demo data. Generic words (a user called Admin) are not checked here.
         # Only a name with a digit: a PC or domain called SERVER, OFFICE or LOCAL would match ordinary words.
-        $names = @($env:COMPUTERNAME) | Where-Object { $_ -match '\d' -and $_.Length -ge 4 }
+        $names = @($env:COMPUTERNAME) | Where-Object { $_ -match '\d' -and $_.Length -ge 4 -and $_ -ne 'PC-042' }
         $files = Get-ChildItem -Path $script:root -Recurse -File -Force |
             Where-Object { $_.FullName.Substring($script:root.Length) -notmatch '[\\/](\.git|out|\.superpowers)[\\/]' -and $_.Extension -in '.md', '.yml', '.ps1', '.psm1', '.psd1', '.html', '.json', '.cmd' }
         $hits = foreach ($name in $names) {

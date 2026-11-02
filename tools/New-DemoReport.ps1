@@ -155,24 +155,33 @@ if ($Screenshot) {
         foreach ($language in 'uk', 'en') {
             $html = $files | Where-Object { $_.Extension -eq '.html' -and $_.Directory.Name -eq $language }
             $png = Join-Path $images "report-$language.png"
-            if (Test-Path -LiteralPath $png) { Remove-Item -LiteralPath $png -Force }
+            # The picture is made next to the reports and moved over the committed one only when it is good.
+            $temp = Join-Path $OutputPath "screenshot-$language.png"
+            if (Test-Path -LiteralPath $temp) { Remove-Item -LiteralPath $temp -Force }
             # Headless Edge follows the Windows theme. The shot is taken from a copy without the dark-theme rule, so it is light on every PC.
             $copy = Join-Path $html.DirectoryName 'screenshot.html'
             $page = [System.IO.File]::ReadAllText($html.FullName, [System.Text.Encoding]::UTF8)
-            [System.IO.File]::WriteAllText($copy, $page.Replace('(prefers-color-scheme: dark)', '(prefers-color-scheme: none)'), $utf8)
+            $light = $page.Replace('(prefers-color-scheme: dark)', '(prefers-color-scheme: none)')
+            if ($light -ceq $page) {
+                Write-Warning 'The report has no dark-theme rule to switch off, so the screenshot may follow the Windows theme. Look at it before you commit it.'
+            }
+            [System.IO.File]::WriteAllText($copy, $light, $utf8)
             try {
                 $arguments = @(
                     '--headless=new', '--disable-gpu', '--hide-scrollbars', '--force-device-scale-factor=1', '--no-first-run', '--disable-extensions',
-                    "--user-data-dir=`"$profileFolder`"", '--window-size=1280,1600', "--screenshot=`"$png`"", ('"{0}"' -f ([System.Uri]$copy).AbsoluteUri)
+                    "--user-data-dir=`"$profileFolder`"", '--window-size=1280,1600', "--screenshot=`"$temp`"", ('"{0}"' -f ([System.Uri]$copy).AbsoluteUri)
                 )
                 $process = Start-Process -FilePath $edge -ArgumentList $arguments -Wait -PassThru -WindowStyle Hidden
             }
             finally {
                 Remove-Item -LiteralPath $copy -Force -ErrorAction SilentlyContinue
             }
-            if (-not (Test-Path -LiteralPath $png) -or (Get-Item -LiteralPath $png).Length -eq 0) {
-                throw "Edge (exit code $($process.ExitCode)) did not write $png."
+            $signature = if (Test-Path -LiteralPath $temp) { [System.IO.File]::ReadAllBytes($temp) | Select-Object -First 8 }
+            if (($signature -join ',') -ne '137,80,78,71,13,10,26,10') {
+                if (Test-Path -LiteralPath $temp) { Remove-Item -LiteralPath $temp -Force }
+                throw "Edge (exit code $($process.ExitCode)) did not write a PNG file for $language. $png is unchanged."
             }
+            Move-Item -LiteralPath $temp -Destination $png -Force
             Get-Item -LiteralPath $png
         }
     }

@@ -3,7 +3,7 @@ param(
     # Folder with README.md and README.uk.md; defaults to the repository root.
     [string]$Path,
 
-    # Compare only: write nothing and report whether each table is current.
+    # Compare only: write nothing, and return the current and the expected table of each README.
     [switch]$Check
 )
 
@@ -25,12 +25,15 @@ $end = '<!-- checks:end -->'
 # Import the module from this repository, whatever copy of Chekap the session already has.
 $null = Import-Module -Name (Join-Path $root 'Chekap/Chekap.psd1') -Force
 try {
-    foreach ($readme in $readmes) {
+    # Both READMEs are prepared first and written after that: a problem in the second one must not leave the first one changed.
+    $plans = foreach ($readme in $readmes) {
         $file = Join-Path $Path $readme.File
         $text = [System.IO.File]::ReadAllText($file, $utf8)
         $first = $text.IndexOf($start, [System.StringComparison]::Ordinal)
         $last = $text.IndexOf($end, [System.StringComparison]::Ordinal)
-        if ($first -lt 0 -or $last -lt $first -or $text.IndexOf($start, $first + 1, [System.StringComparison]::Ordinal) -ge 0) {
+        if ($first -lt 0 -or $last -lt $first -or
+            $text.IndexOf($start, $first + 1, [System.StringComparison]::Ordinal) -ge 0 -or
+            $text.IndexOf($end, $last + 1, [System.StringComparison]::Ordinal) -ge 0) {
             throw "$file must have exactly one $start line followed by one $end line."
         }
 
@@ -47,23 +50,39 @@ try {
         $lines.Add('|---|---|---|---|')
         foreach ($id in $ids) {
             $item = $checks[$id]
-            $category = $strings["Category.$($item.Category)"]
+            $label = "Category.$($item.Category)"
+            # An empty cell in a README would pass unnoticed, so a missing label stops the run.
+            if (-not $strings.ContainsKey($label)) { throw "$($readme.Culture) has no string $label, needed for the check $id." }
             $admin = if ($item.RequiresAdmin) { $readme.Yes } else { $readme.No }
-            $lines.Add(('| `{0}` | {1} | {2} | {3} |' -f $item.Id, $category, $item.Title.Replace('|', '\|'), $admin))
+            $lines.Add(('| `{0}` | {1} | {2} | {3} |' -f $item.Id, $strings[$label], $item.Title.Replace('|', '\|'), $admin))
         }
         $expected = $lines -join "`n"
 
         $begin = $first + $start.Length
         $current = $text.Substring($begin, $last - $begin).Replace("`r`n", "`n").Trim("`n")
-        $upToDate = $current -ceq $expected
-        if (-not $upToDate -and -not $Check) {
+        $content = $null
+        if ($current -cne $expected) {
             # The file keeps its own line ending: CRLF after a checkout on Windows, LF elsewhere.
             $newline = if ($text.Contains("`r`n")) { "`r`n" } else { "`n" }
-            $block = $newline + $expected.Replace("`n", $newline) + $newline
-            [System.IO.File]::WriteAllText($file, $text.Substring(0, $begin) + $block + $text.Substring($last), $utf8)
-            Write-Verbose "Table updated: $file"
+            $content = $text.Substring(0, $begin) + $newline + $expected.Replace("`n", $newline) + $newline + $text.Substring($last)
         }
-        [pscustomobject]@{ Path = $file; Language = $readme.Language; UpToDate = $upToDate; Current = $current; Expected = $expected }
+        @{ File = $file; Language = $readme.Language; Current = $current; Expected = $expected; Content = $content }
+    }
+
+    foreach ($plan in $plans) {
+        $updated = $false
+        if ($plan.Content -and -not $Check) {
+            [System.IO.File]::WriteAllText($plan.File, $plan.Content, $utf8)
+            $updated = $true
+            Write-Verbose "Table updated: $($plan.File)"
+        }
+        # UpToDate says that the table is right when the command ends: true after a successful write as well.
+        $result = [ordered]@{ Path = $plan.File; Language = $plan.Language; UpToDate = ($updated -or -not $plan.Content); Updated = $updated }
+        if ($Check) {
+            $result['Current'] = $plan.Current
+            $result['Expected'] = $plan.Expected
+        }
+        [pscustomobject]$result
     }
 }
 finally {

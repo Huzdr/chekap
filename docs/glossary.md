@@ -4,7 +4,7 @@ English | Українська
 
 This page keeps the words of Chekap the same in both languages. Use these forms in the string tables (`Chekap/en-US` and `Chekap/uk-UA`), the help in `docs/en` and `docs/uk`, and the READMEs. Add a row when you introduce a new term.
 
-Ця сторінка підтримує однакові слова Chekap у двох мовах. Користуйтеся цими формами в таблицях рядків (`Chekap/en-US` і `Chekap/uk-UA`), у довідці (`docs/en` і `docs/uk`) та в README. Запроваджуючи новий термін, додайте рядок.
+Ця сторінка узгоджує слова Chekap у двох мовах. Користуйтеся цими формами в таблицях рядків (`Chekap/en-US` і `Chekap/uk-UA`), у довідці (`docs/en` і `docs/uk`) та в README. Запроваджуючи новий термін, додайте рядок.
 
 ## Terms / Терміни
 

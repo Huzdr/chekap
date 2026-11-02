@@ -9,7 +9,7 @@ Thank you for helping. Chekap is made for sysadmins of small and medium Windows 
 - **A bug or a wrong finding.** Open an issue with the bug form. It asks you to replace real computer names, IP addresses and user names before you paste any output.
 - **An idea for a check.** Describe the problem and how you recognize it on a PC in the check idea form. You do not need to write the code.
 - **A translation or a wording fix.** Use the translation form, or open a pull request that changes the string tables. Ukrainian texts must read as plain, correct Ukrainian written by a sysadmin. See [Wording and translations](#wording-and-translations).
-- **A new check.** Follow the next sections.
+- **A new check.** Follow the instructions in the sections below.
 
 ## Set up
 
@@ -18,10 +18,11 @@ You need Windows, Git and PowerShell. Clone the repository and install the devel
 ```powershell
 git clone https://github.com/Huzdr/chekap.git
 cd chekap
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass   # only if PowerShell blocks scripts; this window only
 ./build.ps1 -Task Bootstrap
 ```
 
-Chekap itself has no runtime dependencies. These modules are for development only.
+Chekap itself has no runtime dependencies. These modules are for development only. The `Set-ExecutionPolicy` line is needed only if PowerShell refuses to run `build.ps1`: it changes the execution policy for this window only.
 
 ## A check in 10 minutes
 
@@ -94,7 +95,7 @@ The texts are never in the code. Add the keys to `Chekap/en-US/Chekap.strings.ps
 | `<Id>.<Message>.Details` | What was found, for every `Message` of the check |
 | `<Id>.<Message>.Recommendation` | What to do. Required for every `Message` that is not `OK` |
 
-For the check above:
+An excerpt of the English table for the check above (the real table also has the keys for `Ok` and `LongFastStartup`):
 
 ```powershell
 'SYS-UPTIME-001.Title' = 'Uptime'
@@ -126,15 +127,22 @@ Markdown and YAML files have no BOM. `.editorconfig` sets UTF-8, CRLF line endin
 
 ### 6. Run the build
 
-From a PowerShell prompt in the repository folder:
+First try the new check on your own PC (put the Id of your check instead of `<Id>`; Git ignores the `out` folder):
+
+```powershell
+Import-Module ./Chekap/Chekap.psd1 -Force
+Invoke-ChekapAudit -CheckId <Id> -OutputPath out/try -Verbose
+```
+
+Then run the build. From a PowerShell prompt in the repository folder:
 
 ```powershell
 ./build.ps1                                          # Lint and Test, the default
-./build.ps1 -Task Lint                               # PSScriptAnalyzer only; it must report nothing
+./build.ps1 -Task Lint                               # PSScriptAnalyzer only; it must pass with no findings
 ./build.ps1 -Task Test -TestPath tests/Checks/System.Tests.ps1
 ```
 
-Run one task per call, as the CI does. With `powershell -File build.ps1` a comma list such as `-Task Lint,Test` arrives as one string; use one task per call or `-Command`. The tests must pass on Windows PowerShell 5.1 and on PowerShell 7, so run both:
+Run one task at a time, as the CI does. With `powershell -File build.ps1` a comma list such as `-Task Lint,Test` arrives as one string, so use `-Command` for a list. The tests must pass on Windows PowerShell 5.1 and on PowerShell 7, so run both:
 
 ```powershell
 powershell -NoProfile -File build.ps1
@@ -153,7 +161,7 @@ Add one line under `## [Unreleased]` in [CHANGELOG.md](CHANGELOG.md), for exampl
 
 ## Changing a command or its help
 
-The help is the markdown in `docs/en/` and `docs/uk/` (platyPS format); the code has no comment-based help. After you change the parameters of a public command, update the page of the command in both folders: `Update-MarkdownHelp -Path docs/en` does the structure, then edit the texts in English and write the Ukrainian page by hand. The tests compare the documented parameters with the real ones. The release build turns the pages into the help of the module.
+The help is the markdown in `docs/en/` and `docs/uk/` (platyPS format); the code has no comment-based help. After you change the parameters of a public command, update the page of the command in both folders. Import platyPS and the module first (`Import-Module platyPS -RequiredVersion 0.14.2; Import-Module ./Chekap/Chekap.psd1 -Force`); then `Update-MarkdownHelp -Path docs/en` does the structure. Edit the texts in English and write the Ukrainian page by hand. The tests compare the documented parameters with the real ones. The release build turns the pages into the help of the module.
 
 ## Wording and translations
 

@@ -2,7 +2,7 @@
 
 <!-- One or two sentences. / Одне-два речення. -->
 
-## Checklist / Чекліст
+## Checklist / Контрольний список
 
 - [ ] `./build.ps1` passes on Windows PowerShell 5.1 and on PowerShell 7 / `./build.ps1` проходить у Windows PowerShell 5.1 і в PowerShell 7
 - [ ] New or changed texts are in both `Chekap/en-US` and `Chekap/uk-UA`, with the same `{n}` placeholders / Нові чи змінені тексти є і в `Chekap/en-US`, і в `Chekap/uk-UA`, з однаковими заповнювачами `{n}`

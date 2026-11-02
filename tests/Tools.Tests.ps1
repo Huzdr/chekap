@@ -83,9 +83,11 @@ All notable changes are documented here.
 
 Describe 'Update-ReadmeChecks' {
     BeforeAll {
-        $script:tool = Join-Path (Split-Path -Path $PSScriptRoot -Parent) 'tools/Update-ReadmeChecks.ps1'
+        $script:repoRoot = Split-Path -Path $PSScriptRoot -Parent
+        $script:tool = Join-Path $script:repoRoot 'tools/Update-ReadmeChecks.ps1'
         $script:utf8 = New-Object -TypeName System.Text.UTF8Encoding -ArgumentList $false
-        $script:checkCount = @(Get-ChildItem -Path (Join-Path (Split-Path -Path $PSScriptRoot -Parent) 'Chekap/Checks') -Filter '*.ps1' -Recurse -File).Count
+        $script:utf8Bom = New-Object -TypeName System.Text.UTF8Encoding -ArgumentList $true
+        $script:checkCount = @(Get-ChildItem -Path (Join-Path $script:repoRoot 'Chekap/Checks') -Filter '*.ps1' -Recurse -File).Count
 
         # A fresh pair of READMEs with a stale table, CRLF like a checkout on Windows, and text around the block that must survive.
         $script:newWork = {
@@ -99,11 +101,32 @@ Describe 'Update-ReadmeChecks' {
             $folder
         }
         $script:read = { param($folder, $file) [System.IO.File]::ReadAllText((Join-Path $folder $file), [System.Text.Encoding]::UTF8) }
+
+        # A private copy of the tool and the module with READMEs next to them, so that a test can change a string table.
+        $script:newRepo = {
+            param($name)
+            $repo = & $script:newWork $name
+            $null = New-Item -ItemType Directory -Path (Join-Path $repo 'tools')
+            Copy-Item -LiteralPath $script:tool -Destination (Join-Path $repo 'tools')
+            Copy-Item -LiteralPath (Join-Path $script:repoRoot 'Chekap') -Destination $repo -Recurse
+            $repo
+        }
+        $script:editTable = {
+            param($repo, $culture, $edit)
+            $path = Join-Path $repo "Chekap/$culture/Chekap.strings.psd1"
+            $lines = @([System.IO.File]::ReadAllLines($path, [System.Text.Encoding]::UTF8))
+            [System.IO.File]::WriteAllText($path, ((& $edit $lines) -join "`r`n"), $script:utf8Bom)
+        }
     }
 
     It 'rewrites only what is between the markers, keeps CRLF and adds no BOM' {
         $folder = & $script:newWork 'rewrite'
-        $null = & $script:tool -Path $folder
+        $results = @(& $script:tool -Path $folder)
+        @($results | Where-Object { -not $_.Updated }) | Should -BeNullOrEmpty
+        @($results | Where-Object { -not $_.UpToDate }) | Should -BeNullOrEmpty
+        # A normal run is quiet: the two tables are only in the output of -Check.
+        $results[0].PSObject.Properties.Name | Should -Not -Contain 'Current'
+        $results[0].PSObject.Properties.Name | Should -Not -Contain 'Expected'
         foreach ($file in 'README.md', 'README.uk.md') {
             $text = & $script:read $folder $file
             $text | Should -Match '^# Intro\r\n\r\nBefore the table\.\r\n\r\n<!-- checks:start -->\r\n\| '
@@ -124,7 +147,7 @@ Describe 'Update-ReadmeChecks' {
         (& $script:read $folder 'README.uk.md') | Should -Match '\| `PRN-SPOOLER-001` \| Друк \| Служба Print Spooler \| ні \|'
     }
 
-    It 'a second run changes nothing' {
+    It 'a second run changes nothing and says so' {
         $folder = & $script:newWork 'twice'
         $null = & $script:tool -Path $folder
         $first = foreach ($file in 'README.md', 'README.uk.md') { (Get-FileHash -LiteralPath (Join-Path $folder $file)).Hash }
@@ -132,15 +155,18 @@ Describe 'Update-ReadmeChecks' {
         $after = foreach ($file in 'README.md', 'README.uk.md') { (Get-FileHash -LiteralPath (Join-Path $folder $file)).Hash }
         $after | Should -Be $first
         @($second | Where-Object { -not $_.UpToDate }) | Should -BeNullOrEmpty
+        @($second | Where-Object { $_.Updated }) | Should -BeNullOrEmpty
     }
 
-    It '-Check reports a stale table and writes nothing' {
+    It '-Check reports a stale table with both tables and writes nothing' {
         $folder = & $script:newWork 'check'
         $before = foreach ($file in 'README.md', 'README.uk.md') { (Get-FileHash -LiteralPath (Join-Path $folder $file)).Hash }
         $result = @(& $script:tool -Path $folder -Check)
         $result.Count | Should -Be 2
         @($result | Where-Object UpToDate) | Should -BeNullOrEmpty
+        @($result | Where-Object Updated) | Should -BeNullOrEmpty
         $result[0].Expected | Should -Not -Be $result[0].Current
+        $result[0].Current | Should -Be '| old | table |'
         $after = foreach ($file in 'README.md', 'README.uk.md') { (Get-FileHash -LiteralPath (Join-Path $folder $file)).Hash }
         $after | Should -Be $before
     }
@@ -149,6 +175,35 @@ Describe 'Update-ReadmeChecks' {
         $folder = & $script:newWork 'nomarkers'
         [System.IO.File]::WriteAllText((Join-Path $folder 'README.md'), "# Intro`r`n", $script:utf8)
         { & $script:tool -Path $folder } | Should -Throw
+    }
+
+    It 'stops with an error when a marker is repeated, and writes nothing' {
+        foreach ($case in @{ Name = 'twostarts'; Marker = '<!-- checks:start -->' }, @{ Name = 'twoends'; Marker = '<!-- checks:end -->' }) {
+            $folder = & $script:newWork $case.Name
+            $path = Join-Path $folder 'README.md'
+            [System.IO.File]::WriteAllText($path, ((& $script:read $folder 'README.md') + $case.Marker + "`r`n"), $script:utf8)
+            $before = (Get-FileHash -LiteralPath $path).Hash
+            { & $script:tool -Path $folder } | Should -Throw
+            (Get-FileHash -LiteralPath $path).Hash | Should -Be $before
+        }
+    }
+
+    It 'escapes a pipe in a title, so the row keeps its four cells' {
+        $repo = & $script:newRepo 'pipe'
+        & $script:editTable $repo 'en-US' { param($lines) $lines -replace "^(\s*'SYS-UPTIME-001\.Title'\s*=\s*)'Uptime'", '${1}''Up|time''' }
+        $null = & (Join-Path $repo 'tools/Update-ReadmeChecks.ps1') -Path $repo
+        $row = @((& $script:read $repo 'README.md') -split '\r\n' | Where-Object { $_.StartsWith('| `SYS-UPTIME-001` |') })
+        $row.Count | Should -Be 1
+        $row[0] | Should -BeExactly '| `SYS-UPTIME-001` | System | Up\|time | no |'
+        [regex]::Matches($row[0], '(?<!\\)\|').Count | Should -Be 5
+    }
+
+    It 'stops with an error when a category has no label in the string table, and writes nothing' {
+        $repo = & $script:newRepo 'nolabel'
+        & $script:editTable $repo 'en-US' { param($lines) @($lines | Where-Object { $_ -notmatch "^\s*'Category\.Printing'" }) }
+        $before = (Get-FileHash -LiteralPath (Join-Path $repo 'README.md')).Hash
+        { & (Join-Path $repo 'tools/Update-ReadmeChecks.ps1') -Path $repo } | Should -Throw -ExpectedMessage '*Category.Printing*'
+        (Get-FileHash -LiteralPath (Join-Path $repo 'README.md')).Hash | Should -Be $before
     }
 }
 
