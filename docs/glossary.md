@@ -16,7 +16,7 @@ The Ukrainian column is the form as it stands in the Ukrainian texts, so a noun 
 | finding | знахідка | help (`docs/uk`), reports |
 | recommendation | рекомендація | in the prose of the texts; the heading in the report and the menu is «Що робити» (`Report.Recommendation`) |
 | collected data (evidence) | Зібрані дані | `Report.Evidence` |
-| object (target) | Об'єкт | `Report.Target` |
+| affected item (target) | Об'єкт | `Report.Target` |
 | learn more (references) | Докладніше | `Report.References` |
 | report | звіт | `Report.Title`, `Invoke-ChekapAudit` |
 | note | Примітка | `Report.Note` |

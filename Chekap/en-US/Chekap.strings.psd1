@@ -318,7 +318,7 @@
     'SYS-STARTUP-001.Title' = 'Startup programs'
     'SYS-STARTUP-001.Ok.Details' = 'Programs that start with Windows: {0}.'
     'SYS-STARTUP-001.Many.Details' = 'Too many programs start with Windows: {0}. The first ones: {1}.'
-    'SYS-STARTUP-001.Many.Recommendation' = 'Start Task Manager (Ctrl+Shift+Esc), open the Startup apps tab (or Settings > Apps > Startup) and turn off what is not needed at sign-in (updaters, helpers, trial software). The PC will start faster and use less memory.'
+    'SYS-STARTUP-001.Many.Recommendation' = 'Open Task Manager (Ctrl+Shift+Esc), go to the Startup apps tab (or Settings > Apps > Startup) and turn off what is not needed at sign-in (updaters, helpers, trial software). The PC will start faster and use less memory.'
 
     # SYS-UPTIME-001
     'SYS-UPTIME-001.Title' = 'Uptime'
