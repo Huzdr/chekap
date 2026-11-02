@@ -202,9 +202,10 @@ Describe 'System checks: numbers follow the report language, not the session cul
 Describe 'System checks: no glyph and no empty placeholder when data is missing' {
     BeforeAll {
         $script:runFixture = {
-            param([string]$Id, [hashtable]$Data, [string]$Language)
+            param([string]$Id, [hashtable]$Fixture, [string]$Language)
             $check = $script:byId[$Id].Clone()
-            $check.Collect = { $Data }.GetNewClosure()
+            $collected = $Fixture
+            $check.Collect = { $collected }.GetNewClosure()
             InModuleScope Chekap -Parameters @{ C = $check; L = $Language } { @(Invoke-ChekapCheck -Check $C -Language $L) }
         }
     }
