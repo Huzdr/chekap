@@ -420,6 +420,33 @@ Describe 'Get-ChekapCheck' {
     }
 }
 
+Describe 'Loading the module from a folder with [brackets] in its path' {
+    BeforeAll {
+        # A copy of the module next to nothing else, loaded by a fresh process of the same engine as this test run.
+        $script:bracketHome = Join-Path $TestDrive 'Chekap [x]'
+        Copy-Item -LiteralPath (Join-Path (Split-Path -Path $PSScriptRoot -Parent) 'Chekap') -Destination $script:bracketHome -Recurse
+        $script:engine = (Get-Process -Id $PID).Path
+        $script:runChild = {
+            param([string]$Command)
+            $env:CHEKAP_TEST_PSD1 = Join-Path $script:bracketHome 'Chekap.psd1'
+            # Encoded: the quotes inside a -Command text do not survive the command line of Windows PowerShell 5.1.
+            $encoded = [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($Command))
+            try { @(& $script:engine -NoProfile -EncodedCommand $encoded 2>&1) -join "`n" }
+            finally { Remove-Item -Path Env:\CHEKAP_TEST_PSD1 -ErrorAction SilentlyContinue }
+        }
+    }
+
+    It 'imports, reads the string tables and runs a check' {
+        $output = & $script:runChild 'Import-Module $env:CHEKAP_TEST_PSD1 -ErrorAction Stop; Test-ChekapHealth -Language en -CheckId SYS-UPTIME-001 | ForEach-Object { "$($_.Status)|$($_.Title)" }'
+        $output | Should -Match '^(OK|Warning)\|Uptime$'
+    }
+
+    It 'still stops with the message in the Constrained Language Mode guard' {
+        $output = & $script:runChild '$ExecutionContext.SessionState.LanguageMode = "ConstrainedLanguage"; try { Import-Module $env:CHEKAP_TEST_PSD1 -ErrorAction Stop } catch { $_.Exception.Message }'
+        $output | Should -Match 'Constrained Language Mode'
+    }
+}
+
 Describe 'Test-ChekapAdmin and Get-ChekapOSBuild' {
     It 'return a bool and a Windows build number' {
         InModuleScope Chekap {
