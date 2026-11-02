@@ -12,7 +12,7 @@ First release. It only diagnoses: nothing is changed on the PC.
 
 ### Added
 
-- 26 read-only checks in three categories: System (10), Network (9) and Printing (7). Every finding has a status, a description, a recommendation and links to the Microsoft documentation.
+- 26 read-only checks in three categories: System (10), Network (9) and Printing (7). Every finding has a status, a description, a recommendation and links to the documentation it is based on.
 - Findings and reports in Ukrainian and in English, from the same checks. The language is taken from `-Language`, then from the setting saved by `Set-ChekapConfig`, then from the language of Windows.
 - Commands: `Test-ChekapHealth`, `Test-ChekapNetwork`, `Test-ChekapPrinting`, `Invoke-ChekapAudit`, `Get-ChekapCheck`, `Get-ChekapConfig`, `Set-ChekapConfig` and `Start-Chekap`.
 - `Invoke-ChekapAudit -OutputPath` writes a report as one HTML file and as JSON. The HTML report works offline, shows the passport of the PC, counters, filters by status and category, a light and a dark theme and a layout for printing.

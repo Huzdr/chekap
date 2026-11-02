@@ -195,7 +195,10 @@ Describe 'New-DemoReport' {
             $script:reports[$language].system.ComputerName | Should -Be 'PC-042'
             @($script:reports[$language].results | Where-Object { $_.ComputerName -ne 'PC-042' }) | Should -BeNullOrEmpty
         }
-        $script:allText | Should -Not -Match ('(?i)(?<![\w-])' + [regex]::Escape($env:COMPUTERNAME) + '(?![\w-])')
+        # Only a name with a digit: a PC called DESKTOP or SERVER would match ordinary words.
+        foreach ($name in @($env:COMPUTERNAME | Where-Object { $_ -match '\d' -and $_ -ne 'PC-042' })) {
+            $script:allText | Should -Not -Match ('(?i)(?<![\w-])' + [regex]::Escape($name) + '(?![\w-])')
+        }
     }
 
     It 'uses only documentation IP addresses (192.0.2.x)' {

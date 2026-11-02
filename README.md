@@ -62,7 +62,7 @@ Get-ChekapCheck -Language uk
 Set-ChekapConfig -Language uk
 ```
 
-`Test-ChekapHealth`, `Test-ChekapNetwork` and `Test-ChekapPrinting` run the checks of one category. Every command returns one object per finding with properties such as `CheckId`, `Category`, `ComputerName`, `Status`, `Target`, `Title`, `Details`, `Recommendation`, `Evidence` and `References`, so the result can be filtered, sorted and exported in PowerShell. The `Status` values are always `OK`, `Warning`, `Critical`, `Error` (the check could not finish) or `Skipped` (the check does not apply, for example there is no battery), in English in any language, so your scripts do not depend on it.
+`Test-ChekapHealth`, `Test-ChekapNetwork` and `Test-ChekapPrinting` run the checks of one category. Every command returns one object per finding with properties such as `CheckId`, `Category`, `ComputerName`, `Status`, `Target`, `Title`, `Details`, `Recommendation`, `Evidence` and `References`, so the result can be filtered, sorted and exported in PowerShell. The `Status` values are always `OK`, `Warning`, `Critical`, `Error` (the check could not finish) or `Skipped` (the check does not apply, for example there is no battery). They stay in English whatever the language, so your scripts do not depend on it.
 
 The language of the findings and the report is the `-Language` of the command, otherwise the one saved by `Set-ChekapConfig`, otherwise the language of the Windows interface (Ukrainian if it is Ukrainian, English otherwise). Help for every command is in both languages: `Get-Help Invoke-ChekapAudit -Examples`.
 
@@ -101,7 +101,7 @@ The table is generated from the checks themselves, so it is always complete. The
 | `SYS-UPTIME-001` | System | Uptime | no |
 <!-- checks:end -->
 
-Every finding has a link to the Microsoft documentation it is based on.
+Every finding links to the documentation it is based on, mostly from Microsoft.
 
 ## Known limitations
 

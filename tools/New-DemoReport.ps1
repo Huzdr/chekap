@@ -162,7 +162,7 @@ if ($Screenshot) {
             [System.IO.File]::WriteAllText($copy, $page.Replace('(prefers-color-scheme: dark)', '(prefers-color-scheme: none)'), $utf8)
             try {
                 $arguments = @(
-                    '--headless=new', '--disable-gpu', '--hide-scrollbars', '--no-first-run', '--disable-extensions',
+                    '--headless=new', '--disable-gpu', '--hide-scrollbars', '--force-device-scale-factor=1', '--no-first-run', '--disable-extensions',
                     "--user-data-dir=`"$profileFolder`"", '--window-size=1280,1600', "--screenshot=`"$png`"", ('"{0}"' -f ([System.Uri]$copy).AbsoluteUri)
                 )
                 $process = Start-Process -FilePath $edge -ArgumentList $arguments -Wait -PassThru -WindowStyle Hidden
