@@ -42,9 +42,11 @@
         if ($stuck.Count -eq 0) {
             return @{ Status = 'OK'; Message = 'Ok'; Args = @($jobs.Count) }
         }
-        foreach ($group in @($stuck | Group-Object -Property { $_.Printer })) {
-            $oldest = ($group.Group | ForEach-Object { $_.Minutes } | Measure-Object -Maximum).Maximum
-            @{ Status = 'Warning'; Message = 'Stuck'; Target = $group.Name; Args = @($group.Count, $oldest); Evidence = @{ Printer = $group.Name; StuckJobs = $group.Count; OldestMinutes = $oldest } }
+        # Not Group-Object: its group order differs between PowerShell 7 versions; printers keep the order they were listed in.
+        foreach ($printer in @($stuck | ForEach-Object { $_.Printer } | Select-Object -Unique)) {
+            $group = @($stuck | Where-Object { $_.Printer -ceq $printer })
+            $oldest = ($group | ForEach-Object { $_.Minutes } | Measure-Object -Maximum).Maximum
+            @{ Status = 'Warning'; Message = 'Stuck'; Target = $printer; Args = @($group.Count, $oldest); Evidence = @{ Printer = $printer; StuckJobs = $group.Count; OldestMinutes = $oldest } }
         }
     }
 }
