@@ -159,7 +159,7 @@ Describe 'Test-ChekapDnsServer' {
     BeforeAll {
         # A DNS server on loopback in a runspace of its own: it reads one query and answers as the plan says.
         # RCode/Answers shape the reply; WrongIdFirst sends a reply with a wrong id before the right one; OnlyWrongId never sends the right one;
-        # Silent sends nothing; Capture (a synchronized hashtable) receives the bytes of the query.
+        # Silent sends nothing; IgnoreFirst drops the first datagram and answers the second; Capture (a synchronized hashtable) receives the bytes of the last query and, under Count, the number of datagrams.
         $script:startFakeDns = {
             param($Plan)
             $endpoint = New-Object System.Net.IPEndPoint ([System.Net.IPAddress]::Loopback), 0
@@ -172,9 +172,15 @@ Describe 'Test-ChekapDnsServer' {
                     param($Listener, $Plan)
                     $Listener.Client.ReceiveTimeout = 10000
                     $from = New-Object System.Net.IPEndPoint ([System.Net.IPAddress]::Any), 0
-                    try { $query = $Listener.Receive([ref]$from) } catch { return }
-                    if ($Plan.Capture) { $Plan.Capture.Query = $query }
-                    if ($Plan.Silent) { return }
+                    $count = 0
+                    while ($true) {
+                        try { $query = $Listener.Receive([ref]$from) } catch { return }
+                        $count++
+                        if ($Plan.Capture) { $Plan.Capture.Query = $query; $Plan.Capture['Count'] = $count }
+                        # IgnoreFirst loses the first datagram; Silent never answers (and goes on counting the datagrams it gets).
+                        if ($Plan.Silent -or ($Plan.IgnoreFirst -and $count -eq 1)) { continue }
+                        break
+                    }
                     $reply = [byte[]]$query.Clone()
                     $reply[2] = 0x81
                     $reply[3] = 0x80 -bor $Plan.RCode
@@ -194,11 +200,11 @@ Describe 'Test-ChekapDnsServer' {
             }
         }
         $script:askFakeDns = {
-            param($Plan, $TimeoutMs)
+            param($Plan, $TimeoutMs, $Name = 'www.contoso.local')
             $fake = & $script:startFakeDns $Plan
             try {
-                InModuleScope Chekap -Parameters @{ Port = $fake.Port; TimeoutMs = $TimeoutMs } {
-                    Test-ChekapDnsServer -Server '127.0.0.1' -Name 'www.contoso.local' -TimeoutMs $TimeoutMs -Port $Port
+                InModuleScope Chekap -Parameters @{ Port = $fake.Port; TimeoutMs = $TimeoutMs; Name = $Name } {
+                    Test-ChekapDnsServer -Server '127.0.0.1' -Name $Name -TimeoutMs $TimeoutMs -Port $Port
                 }
             }
             finally {
@@ -285,9 +291,44 @@ Describe 'Test-ChekapDnsServer' {
         @($ids | Sort-Object -Unique).Count | Should -BeGreaterThan 1
     }
 
-    It 'refuses a name that is not a DNS name: <Bad>' -ForEach @(@{ Bad = 'bad..name' }, @{ Bad = '-' }, @{ Bad = 'a b' }, @{ Bad = ('a' * 64) }) {
-        InModuleScope Chekap -Parameters @{ Bad = $Bad } {
-            { Test-ChekapDnsServer -Server '127.0.0.1' -Name $Bad -TimeoutMs 200 } | Should -Throw
-        }
+    It 'does not ask for a name that is not a DNS name, and does not throw: <Bad>' -ForEach @(@{ Bad = 'bad..name' }, @{ Bad = '-' }, @{ Bad = 'a b' }, @{ Bad = ('a' * 64) }, @{ Bad = 'bad name.local' }, @{ Bad = '.' }) {
+        $capture = [hashtable]::Synchronized(@{})
+        $r = & $script:askFakeDns @{ RCode = 0; Answers = 1; Capture = $capture } 300 $Bad
+        $r.Responds | Should -BeFalse
+        $r.RCode | Should -BeNullOrEmpty
+        $capture.ContainsKey('Query') | Should -BeFalse
+    }
+
+    It 'asks for a Cyrillic name in punycode' {
+        $capture = [hashtable]::Synchronized(@{})
+        $r = & $script:askFakeDns @{ RCode = 0; Answers = 1; Capture = $capture } 3000 'мерія.local'
+        $r.Responds | Should -BeTrue
+        $r.AnswerCount | Should -Be 1
+        $ascii = (New-Object System.Globalization.IdnMapping).GetAscii('мерія.local')
+        $ascii | Should -BeLike 'xn--*.local'
+        $q = [byte[]]$capture.Query
+        $expected = @()
+        foreach ($label in $ascii.Split('.')) { $expected += [byte]$label.Length; $expected += [Text.Encoding]::ASCII.GetBytes($label) }
+        $expected += [byte[]](0, 0, 1, 0, 1)
+        ($q[12..($q.Length - 1)] -join ',') | Should -Be ($expected -join ',')
+    }
+
+    It 'sends the query once more when the first datagram is lost' {
+        $capture = [hashtable]::Synchronized(@{})
+        $r = & $script:askFakeDns @{ RCode = 0; Answers = 1; IgnoreFirst = $true; Capture = $capture } 3000
+        $r.Responds | Should -BeTrue
+        $capture['Count'] | Should -Be 2
+        # The second query goes out after half of the time.
+        $r.Ms | Should -BeGreaterOrEqual 1400
+    }
+
+    It 'a silent server gets the query twice and the whole wait still stays within the timeout' {
+        $capture = [hashtable]::Synchronized(@{})
+        $sw = [Diagnostics.Stopwatch]::StartNew()
+        $r = & $script:askFakeDns @{ Silent = $true; Capture = $capture } 800
+        $sw.Stop()
+        $r.Responds | Should -BeFalse
+        $capture['Count'] | Should -Be 2
+        $sw.Elapsed.TotalMilliseconds | Should -BeLessThan 1800
     }
 }

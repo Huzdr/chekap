@@ -32,8 +32,14 @@
         if ($partOfDomain) {
             $domainResolves = $false
             if ($null -ne $server) {
-                $domain = Test-ChekapDnsServer -Server $server -Name ([string]$system.Domain) -TimeoutMs $Settings.TimeoutMs
-                $domainResolves = [bool]($domain.Responds -and $domain.RCode -eq 0 -and $domain.AnswerCount -gt 0)
+                # Any failure of this probe means that the domain does not resolve; it is never an Error of the check.
+                try {
+                    $domain = Test-ChekapDnsServer -Server $server -Name ([string]$system.Domain) -TimeoutMs $Settings.TimeoutMs
+                    $domainResolves = [bool]($domain.Responds -and $domain.RCode -eq 0 -and $domain.AnswerCount -gt 0)
+                }
+                catch {
+                    Write-Verbose $_.Exception.Message
+                }
             }
         }
         @{

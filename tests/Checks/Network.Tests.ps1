@@ -462,6 +462,21 @@ Describe 'Network checks: Collect' {
             $data.DomainResolves | Should -Be $Expected
         }
 
+        It 'a Cyrillic domain whose probe fails is DomainFail, never Error' {
+            Mock Get-CimInstance { [pscustomobject]@{ PartOfDomain = $true; Domain = 'мерія.local' } } -ModuleName Chekap -ParameterFilter { $ClassName -eq 'Win32_ComputerSystem' }
+            # Whatever goes wrong while the domain is asked for (here: a refused name) is a domain that does not resolve.
+            Mock Test-ChekapDnsServer { throw 'The domain name was refused.' } -ModuleName Chekap -ParameterFilter { $Name -eq 'мерія.local' }
+            $check = $script:byId['NET-DNS-002']
+            $data = & $check.Collect $check.Settings
+            $data.DomainResolves | Should -BeFalse
+            $data.ExternalResolves | Should -BeTrue
+            $results = @(InModuleScope Chekap -Parameters @{ C = $check } { Invoke-ChekapCheck -Check $C -Language uk })
+            @($results | Where-Object { $_.Status -eq 'Error' }) | Should -BeNullOrEmpty
+            $results.Count | Should -Be 1
+            $results[0].Status | Should -Be 'Critical'
+            $results[0].Target | Should -Be 'мерія.local'
+        }
+
         It 'judges the two names separately' {
             Mock Test-ChekapDnsServer { @{ Responds = $true; RCode = 3; AnswerCount = 0; Ms = 3 } } -ModuleName Chekap -ParameterFilter { $Name -eq 'www.microsoft.com' }
             $check = $script:byId['NET-DNS-002']
