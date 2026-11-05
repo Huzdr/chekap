@@ -13,7 +13,7 @@ Opens a console menu for running the Chekap checks without typing commands.
 ## SYNTAX
 
 ```
-Start-Chekap [<CommonParameters>]
+Start-Chekap [-NoBanner] [<CommonParameters>]
 ```
 
 ## DESCRIPTION
@@ -26,6 +26,8 @@ The checks only read data. The menu writes only the report files (item 5) and th
 The offline package has the file Start-Chekap.cmd next to the Chekap folder. Double-click it to start the menu without installing anything. The menu runs as the signed-in user and does not ask for administrator rights, so the checks see the printers, the proxy and the settings of that user. The folder of crash dumps cannot be read without them: if you need it, start PowerShell as administrator and run Import-Module .\Chekap\Chekap.psd1; Start-Chekap. The window closes when you leave the menu.
 
 The menu reads from the console, so it needs an interactive PowerShell window. If the input ends, the menu ends.
+
+At the start the author's banner is shown above the menu. It appears only in an interactive window, never in a remote session; -NoBanner leaves it out.
 
 ## EXAMPLES
 
@@ -43,7 +45,29 @@ Import-Module .\Chekap\Chekap.psd1; Start-Chekap
 
 Loads the module from the Chekap folder in the current location and opens the menu, without installing anything. This is what Start-Chekap.cmd does.
 
+### Example 3: Open the menu without the banner
+```powershell
+Start-Chekap -NoBanner
+```
+
+Opens the menu straight away, without the banner above it.
+
 ## PARAMETERS
+
+### -NoBanner
+Opens the menu without the author's banner above it.
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: (All)
+Aliases:
+
+Required: False
+Position: Named
+Default value: False
+Accept pipeline input: False
+Accept wildcard characters: False
+```
 
 ### CommonParameters
 This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable, -InformationAction, -InformationVariable, -OutVariable, -OutBuffer, -PipelineVariable, -Verbose, -WarningAction, and -WarningVariable. For more information, see [about_CommonParameters](http://go.microsoft.com/fwlink/?LinkID=113216).

@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- `Start-Chekap` shows the author's banner above the first menu in an interactive window; `-NoBanner` leaves it out.
+
 ## [0.1.0] - 2026-11-02
 
 First release. It only diagnoses: nothing is changed on the PC.

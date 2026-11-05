@@ -3,7 +3,9 @@
     [CmdletBinding()]
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'The menu talks to the person at the console; it is not meant for the pipeline.')]
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'The person picks each action in the menu; the only config write goes through Set-ChekapConfig, which supports ShouldProcess.')]
-    param()
+    param(
+        [switch]$NoBanner
+    )
 
     # The language is session state: item 6 changes this variable, and the saved setting is read only once, here.
     $lang = Resolve-ChekapLanguage
@@ -14,8 +16,15 @@
     # Messages for the next screen: the loop starts with Clear-Host, which would wipe a message printed right before it.
     $notices = New-Object -TypeName 'System.Collections.Generic.List[object]'
 
+    # The banner stays above the first menu: that screen skips Clear-Host, the next ones clear it away.
+    $keepBanner = $false
+    if (-not $NoBanner -and [Environment]::UserInteractive -and $Host.Name -ne 'ServerRemoteHost') {
+        Show-HuzdrBanner -Subtitle "Chekap $version"
+        $keepBanner = $true
+    }
+
     while ($true) {
-        Clear-Host
+        if ($keepBanner) { $keepBanner = $false } else { Clear-Host }
         Write-Host (Get-ChekapText -Strings $strings -Key 'Tui.Header' -FormatArgs $version, $env:COMPUTERNAME) -ForegroundColor Cyan
         if (-not $isAdmin) {
             Write-Host (Get-ChekapText -Strings $strings -Key 'Tui.NotAdmin') -ForegroundColor Yellow

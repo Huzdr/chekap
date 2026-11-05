@@ -22,7 +22,7 @@
         $script:TuiLog = [System.Collections.Generic.List[string]]::new()
         $script:TuiAnswers = [System.Collections.Generic.Queue[object]]::new()
         foreach ($answer in $Answers) { $script:TuiAnswers.Enqueue($answer) }
-        $output = @(InModuleScope Chekap { Start-Chekap })
+        $output = @(InModuleScope Chekap { Start-Chekap -NoBanner })
         [pscustomobject]@{ Output = $output; Log = $script:TuiLog.ToArray() }
     }
     # 'ok' when the lines occur in the log in this order (other lines may sit between them), otherwise the first line that is missing.
@@ -214,6 +214,33 @@ Describe 'Start-Chekap' {
         It 'does not show the NotAdmin line when PowerShell is elevated' {
             $log = (& $script:drive -Answers '0').Log
             $log | Should -Not -Contain (& $script:say 'Yellow' $script:uk['Tui.NotAdmin'])
+        }
+
+        It 'shows the banner above the first menu in an interactive session, and -NoBanner skips it' {
+            Mock Show-HuzdrBanner { $script:TuiLog.Add("BANNER|$Subtitle") } -ModuleName Chekap
+            $script:TuiLog = [System.Collections.Generic.List[string]]::new()
+            $script:TuiAnswers = [System.Collections.Generic.Queue[object]]::new()
+            $script:TuiAnswers.Enqueue('0')
+            $null = InModuleScope Chekap { Start-Chekap }
+            # A CI service runs without a user session: there the banner must stay off, as in a remote session.
+            if ([Environment]::UserInteractive -and $Host.Name -ne 'ServerRemoteHost') {
+                $script:TuiLog[0] | Should -Be "BANNER|Chekap $script:version"
+                $script:TuiLog | Should -Not -Contain 'CLEAR'
+            }
+            else {
+                $script:TuiLog[0] | Should -Be 'CLEAR'
+            }
+            @((& $script:drive -Answers '0').Log | Where-Object { $_ -like 'BANNER*' }).Count | Should -Be 0
+        }
+    }
+
+    Context 'the banner' {
+        It 'writes the mask, the signature and the subtitle to the host only' {
+            $script:TuiLog = [System.Collections.Generic.List[string]]::new()
+            $output = @(InModuleScope Chekap { Show-HuzdrBanner -Subtitle 'Chekap 9.9.9' })
+            $output | Should -BeNullOrEmpty
+            $script:TuiLog | Should -Contain (('SAY|DarkGray|{0}Chekap 9.9.9' -f (' ' * 24)))
+            @($script:TuiLog | Where-Object { $_ -like 'SAY|Green|*/____/*' }).Count | Should -Be 1
         }
     }
 

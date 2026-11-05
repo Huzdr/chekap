@@ -13,7 +13,7 @@ schema: 2.0.0
 ## SYNTAX
 
 ```
-Start-Chekap [<CommonParameters>]
+Start-Chekap [-NoBanner] [<CommonParameters>]
 ```
 
 ## DESCRIPTION
@@ -26,6 +26,8 @@ Start-Chekap [<CommonParameters>]
 В офлайн-пакеті файл Start-Chekap.cmd лежить поруч із папкою Chekap. Двічі клацніть його, щоб запустити меню без встановлення. Меню працює від імені користувача, який увійшов у систему, і прав адміністратора не просить, тож перевірки бачать принтери, проксі-сервер і налаштування саме цього користувача. Без цих прав папку з дампами аварій прочитати неможливо: якщо вона потрібна, запустіть PowerShell від імені адміністратора й виконайте Import-Module .\Chekap\Chekap.psd1; Start-Chekap. Вікно закривається, коли ви виходите з меню.
 
 Меню читає введення з консолі, тож потрібне інтерактивне вікно PowerShell. Коли введення закінчується, меню завершується.
+
+Під час запуску над меню з'являється банер автора. Його видно лише в інтерактивному вікні, а не у віддаленому сеансі; параметр -NoBanner його вимикає.
 
 ## EXAMPLES
 
@@ -43,7 +45,29 @@ Import-Module .\Chekap\Chekap.psd1; Start-Chekap
 
 Завантажує модуль із папки Chekap у поточному розташуванні та відкриває меню без встановлення. Саме це робить Start-Chekap.cmd.
 
+### Приклад 3: Відкрити меню без банера
+```powershell
+Start-Chekap -NoBanner
+```
+
+Відкриває меню одразу, без банера над ним.
+
 ## PARAMETERS
+
+### -NoBanner
+Відкриває меню без банера автора над ним.
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: (All)
+Aliases:
+
+Required: False
+Position: Named
+Default value: False
+Accept pipeline input: False
+Accept wildcard characters: False
+```
 
 ### CommonParameters
 Команда підтримує загальні параметри: -Debug, -ErrorAction, -ErrorVariable, -InformationAction, -InformationVariable, -OutVariable, -OutBuffer, -PipelineVariable, -Verbose, -WarningAction і -WarningVariable. Докладніше: [about_CommonParameters](http://go.microsoft.com/fwlink/?LinkID=113216).
